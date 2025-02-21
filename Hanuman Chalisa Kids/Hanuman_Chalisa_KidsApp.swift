@@ -9,9 +9,12 @@ import SwiftUI
 
 @main
 struct Hanuman_Chalisa_KidsApp: App {
+    @StateObject private var viewModel = VersesViewModel()
+    
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .environmentObject(viewModel)
         }
     }
 }
