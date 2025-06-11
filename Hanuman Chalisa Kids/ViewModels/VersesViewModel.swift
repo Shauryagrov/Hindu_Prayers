@@ -23,6 +23,38 @@ struct VerseSection: Identifiable {
     let verses: [Verse]
 }
 
+class VersesListViewModel: ObservableObject {
+    @Published var sections: [VerseSection]
+    @Published var verses: [Verse]
+    
+    init() {
+        self.sections = []
+        self.verses = []
+    }
+    
+    init(sections: [VerseSection], verses: [Verse]) {
+        self.sections = sections
+        self.verses = verses
+    }
+    
+    // Methods related to verse listing and navigation
+}
+
+class AudioPlaybackViewModel: ObservableObject {
+    @Published var isPlaying: Bool = false
+    @Published var isPaused: Bool = false
+    @Published var currentWord: String?
+    
+    // Methods related to audio playback
+}
+
+class QuizViewModel: ObservableObject {
+    @Published var quizResults: [QuizResult] = []
+    
+    // Methods related to quiz functionality
+}
+
+@MainActor
 class VersesViewModel: NSObject, ObservableObject {
     @Published var sections: [VerseSection]
     @Published var openingDoha: [DohaVerse]
@@ -227,7 +259,6 @@ class VersesViewModel: NSObject, ObservableObject {
     
     private var lastHighlightedWord: String?
     private var lastHighlightedRange: NSRange?
-    private var isUpdatingState = false
     
     // Add a more robust section tracking
     private struct PlaybackPosition {
@@ -264,82 +295,131 @@ class VersesViewModel: NSObject, ObservableObject {
     
     private var playbackPosition = PlaybackPosition(section: .openingDoha, index: 0)
     
-    override init() {
-        // First get all the data
-        let allVerses = Self.getAllVerses()  // Get verses first
-        let openingDohas = Self.getOpeningDoha()
-        let closingDoha = Self.getClosingDoha()
+    // Add robust error handling
+    enum AppError: Error, LocalizedError {
+        case audioPlaybackFailed(String)
+        case textToSpeechFailed(String)
+        case resourceNotFound(String)
+        case dataLoading(description: String, underlyingError: Error?)
         
-        // Initialize properties
-        self.verses = allVerses  // Make sure verses are set
-        self.openingDoha = openingDohas
-        self.closingDoha = closingDoha
+        var errorDescription: String? {
+            switch self {
+            case .audioPlaybackFailed(let details):
+                return "Audio playback failed: \(details)"
+            case .textToSpeechFailed(let details):
+                return "Text to speech failed: \(details)"
+            case .resourceNotFound(let details):
+                return "Resource not found: \(details)"
+            case .dataLoading(let description, let underlyingError):
+                return "Data loading issue: \(description), underlying error: \(underlyingError?.localizedDescription ?? "none")"
+            }
+        }
+    }
+    
+    // Dependencies
+    private let audioService: AudioServiceProtocol
+    private let dataService: DataServiceProtocol
+    
+    // Add separate synthesizers for different playback sources
+    private var quizSynthesizer = AVSpeechSynthesizer()
+    private var completeSynthesizer = AVSpeechSynthesizer()
+    private var detailSynthesizer = AVSpeechSynthesizer()
+    
+    // Add separate properties for quiz playback
+    @Published var currentQuizVerse: Verse?
+    @Published var isQuizPlaying = false
+    @Published var isQuizPaused = false
+    
+    // Add separate properties for complete chalisa playback
+    @Published var currentCompleteVerse: Verse?
+    @Published var isCompletePlaying = false
+    @Published var isCompletePaused = false
+    
+    // Main initializer with dependencies
+    init(audioService: AudioServiceProtocol,
+         dataService: DataServiceProtocol) {
+        self.audioService = audioService
+        self.dataService = dataService
+        
+        // Initialize with default data to prevent crashes
+        self.sections = []
+        self.verses = []
+        self.openingDoha = []
+        self.closingDoha = DohaVerse(text: "", meaning: "", explanation: "")
+        
+        // Call super.init() before using self properties
+        super.init()
+        
+        // Setup all synthesizers
+        synthesizer.delegate = self
+        quizSynthesizer.delegate = self
+        completeSynthesizer.delegate = self
+        detailSynthesizer.delegate = self
+        
+        // Now we can use self properties to create sections
+        self.verses = VersesViewModel.getAllVerses()
+        self.openingDoha = VersesViewModel.getOpeningDoha()
+        self.closingDoha = VersesViewModel.getClosingDoha()
         
         // Create sections using the local variables
         self.sections = [
             VerseSection(title: "Opening Prayers", verses: [
                 Verse(
                     number: -1, 
-                    text: openingDohas[0].text, 
-                    meaning: openingDohas[0].meaning, 
-                    simpleTranslation: Self.getDohaSimpleTranslation(number: -1),
-                    explanation: openingDohas[0].explanation, 
+                    text: openingDoha[0].text, 
+                    meaning: openingDoha[0].meaning, 
+                    simpleTranslation: VersesViewModel.getDohaSimpleTranslation(number: -1),
+                    explanation: openingDoha[0].explanation, 
                     audioFileName: "doha_1"
                 ),
                 Verse(
                     number: -2, 
-                    text: openingDohas[1].text, 
-                    meaning: openingDohas[1].meaning, 
-                    simpleTranslation: Self.getDohaSimpleTranslation(number: -2),
-                    explanation: openingDohas[1].explanation, 
+                    text: openingDoha[1].text, 
+                    meaning: openingDoha[1].meaning, 
+                    simpleTranslation: VersesViewModel.getDohaSimpleTranslation(number: -2),
+                    explanation: openingDoha[1].explanation, 
                     audioFileName: "doha_2"
                 )
             ]),
-            VerseSection(title: "Main Verses", verses: allVerses),
+            VerseSection(title: "Main Verses", verses: verses),
             VerseSection(title: "Closing Prayer", verses: [
                 Verse(
                     number: -3, 
                     text: closingDoha.text, 
                     meaning: closingDoha.meaning, 
-                    simpleTranslation: Self.getDohaSimpleTranslation(number: -3),
+                    simpleTranslation: VersesViewModel.getDohaSimpleTranslation(number: -3),
                     explanation: closingDoha.explanation, 
                     audioFileName: "doha_3"
                 )
             ])
         ]
-        
-        super.init()
-        
-        // Print debug info
-        print("=== ViewModel Initialization ===")
-        print("Verses count: \(verses.count)")
-        print("Opening dohas: \(openingDoha.count)")
-        print("Current section: \(currentSection)")
-        print("Current doha index: \(currentDohaIndex)")
-        
-        loadBookmarks()
-        loadProgress()
-        
-        // Handle potential error from setupAudioSession
-        do {
-            try setupAudioSession()
-        } catch {
-            print("Failed to setup audio session during initialization: \(error)")
-            // Continue initialization even if audio session setup fails
-            // The error will be handled when trying to play audio
-        }
-        
-        synthesizer.delegate = self
+    }
+    
+    // Convenience initializer that creates default implementations
+    override convenience init() {
+        self.init(
+            audioService: AudioService(),
+            dataService: MockDataService()
+        )
     }
     
     private func setupAudioSession() throws {
-        audioSession = AVAudioSession.sharedInstance()
+        let session = AVAudioSession.sharedInstance()
+        
         do {
-            try audioSession?.setCategory(.playback, mode: .default)
-            try audioSession?.setActive(true)
+            // First, deactivate any existing session
+            try session.setActive(false, options: .notifyOthersOnDeactivation)
+            
+            // Wait a moment for the deactivation to complete
+            Thread.sleep(forTimeInterval: 0.1)
+            
+            // Now set the category and activate
+            try session.setCategory(.playback, mode: .spokenAudio)
+            try session.setActive(true)
+            print("Audio session set up successfully")
         } catch {
             print("Failed to set up audio session: \(error)")
-            throw PlaybackError.playbackFailed(underlying: error)
+            throw error
         }
     }
     
@@ -360,97 +440,126 @@ class VersesViewModel: NSObject, ObservableObject {
         }
     }
     
+    // Update the playTextToSpeech method to reset isPaused
     func playTextToSpeech(for verse: Verse) throws {
-        self.currentVerse = verse
-        try playTextToSpeech(text: verse.text, language: "hi-IN")
-    }
-    
-    func playTextToSpeech(text: String, language: String) throws {
-        do {
-            try setupAudioSession()
-            
-            guard !text.isEmpty else {
-                throw PlaybackError.invalidVerse
-            }
-            
-            synthesizer.stopSpeaking(at: .immediate)
-            let utterance = AVSpeechUtterance(string: text)
-            
-            utterance.rate = speechRate
-            utterance.pitchMultiplier = 1.0
-            utterance.volume = 1.0
-            
-            let voice = getVoice(forLanguage: language)
-            
-            guard voice.language == language else {
-                throw PlaybackError.voiceUnavailable(language: language)
-            }
-            
-            utterance.voice = voice
-            synthesizer.speak(utterance)
-            isPlaying = true
-        } catch {
-            throw PlaybackError.playbackFailed(underlying: error)
-        }
-    }
-    
-    func playAudio(for verse: Verse) {
+        print("Starting playback for verse: \(verse.number)")
+        
+        // Stop any existing playback
         stopAudio()
         
-        let utterance = if currentPlaybackState == .mainText {
-            AVSpeechUtterance(string: verse.text)
-        } else {
-            AVSpeechUtterance(string: verse.explanation)
-        }
-        
-        utterance.voice = VoiceManager.shared.getVoice(forLanguage: currentPlaybackState == .mainText ? "hi-IN" : "en-IN")
-        utterance.rate = speechRate
-        synthesizer.speak(utterance)
+        // Set state
+        currentVerse = verse
         isPlaying = true
+        isPaused = false  // Make sure isPaused is reset to false
+        currentPlaybackState = .mainText  // Start with Hindi text
+        lastHighlightPosition = nil  // Reset the position
+        
+        // Play the Hindi part first
+        playHindiPart(for: verse)
     }
     
-    func stopAudio(completion: (() -> Void)? = nil) {
-        guard !isUpdatingState else { return }
-        isUpdatingState = true
+    // Add a method to play the Hindi part
+    private func playHindiPart(for verse: Verse) {
+        print("Playing Hindi part for verse: \(verse.number)")
         
-        // Stop all playback immediately
-        synthesizer.stopSpeaking(at: .immediate)
+        // Set up the utterance for Hindi text
+        let utterance = AVSpeechUtterance(string: verse.text)
+        utterance.voice = getVoice(forLanguage: "hi-IN")
+        utterance.rate = 0.5
+        utterance.pitchMultiplier = 1.0
+        
+        // Start speaking
+        synthesizer.speak(utterance)
+    }
+    
+    // Update the playEnglishPart method to support word highlighting
+    private func playEnglishPart(for verse: Verse, using source: PlaybackSource = .none) {
+        print("Playing English part for verse: \(verse.number) using source: \(source)")
+        
+        // Set the playback state to explanation
+        currentPlaybackState = .explanation
+        
+        // Set up the utterance for English text
+        let utterance = AVSpeechUtterance(string: verse.explanation)
+        utterance.voice = getVoice(forLanguage: "en-US")
+        utterance.rate = 0.5
+        utterance.pitchMultiplier = 1.0
+        
+        // Get the appropriate synthesizer based on source
+        let synth = getSynthesizer(for: source)
+        
+        // Start speaking with the correct synthesizer
+        print("Speaking English explanation using synthesizer for source: \(source)")
+        synth.speak(utterance)
+    }
+    
+    // Add a flag to track intentional stops
+    private var isIntentionallyStopping = false
+
+    // Add a flag to prevent immediate stopping
+    @Published var preventAutoStop = false
+
+    // Update stopAudio to respect the preventAutoStop flag
+    func stopAudio() {
+        print("Stopping audio (preventAutoStop: \(preventAutoStop), source: \(currentPlaybackSource))")
+        
+        // If preventAutoStop is true, don't stop the audio
+        if preventAutoStop {
+            print("Skipping audio stop due to preventAutoStop flag")
+            return
+        }
+        
+        // Otherwise, proceed with stopping
+        isIntentionallyStopping = true
         isPlaying = false
         isPaused = false
+        isPlayingCompleteVersion = false
+        
+        // Stop speech synthesis
+        synthesizer.stopSpeaking(at: .immediate)
+        
+        // Stop audio player if it exists
+        audioPlayer?.stop()
+        
+        // Reset current verse and word
         currentWord = nil
         currentRange = nil
-        lastHighlightedWord = nil
-        lastHighlightedRange = nil
-        currentPlaybackState = .mainText  // Reset to main text state
         
-        isUpdatingState = false
-        completion?()  // Call completion after everything is stopped
+        // Reset the playback source
+        currentPlaybackSource = .none
+        
+        // Notify observers
+        objectWillChange.send()
     }
     
+    // Add pause functionality
     func pauseAudio() {
-        guard !isUpdatingState else { return }
-        isUpdatingState = true
+        print("Pausing audio playback - isPlaying: \(isPlaying), isPaused: \(isPaused)")
         
-        isPaused = true
-        lastHighlightedWord = currentWord
-        lastHighlightedRange = currentRange
-        synthesizer.pauseSpeaking(at: .immediate)
-        
-        isUpdatingState = false
+        if isPlaying && !isPaused {
+            print("Calling pauseSpeaking")
+            synthesizer.pauseSpeaking(at: .immediate)
+            isPaused = true
+            print("isPaused set to true")
+            objectWillChange.send()
+        } else {
+            print("Not pausing - conditions not met")
+        }
     }
     
+    // Add resume functionality
     func resumeAudio() {
-        guard !isUpdatingState else { return }
-        isUpdatingState = true
+        print("Resuming audio playback - isPlaying: \(isPlaying), isPaused: \(isPaused)")
         
-        isPaused = false
-        if let word = lastHighlightedWord, let range = lastHighlightedRange {
-            currentWord = word
-            currentRange = range
+        if isPlaying && isPaused {
+            print("Calling continueSpeaking")
+            synthesizer.continueSpeaking()
+            isPaused = false
+            print("isPaused set to false")
+            objectWillChange.send()
+        } else {
+            print("Not resuming - conditions not met")
         }
-        synthesizer.continueSpeaking()
-        
-        isUpdatingState = false
     }
     
     func toggleBookmark(for verse: Verse) {
@@ -485,7 +594,7 @@ class VersesViewModel: NSObject, ObservableObject {
         }
     }
     
-    private static func getAllVerses() -> [Verse] {
+    internal static func getAllVerses() -> [Verse] {
         [
             Verse(
                 number: 1,
@@ -810,7 +919,7 @@ class VersesViewModel: NSObject, ObservableObject {
         ]
     }
     
-    private static func getOpeningDoha() -> [DohaVerse] {
+    internal static func getOpeningDoha() -> [DohaVerse] {
         [
             DohaVerse(
                 text: "श्रीगुरु चरन सरोज रज निज मनु मुकुरु सुधारि ।\nबरनउँ रघुबर बिमल जसु जो दायकु फल चारि ॥",
@@ -825,7 +934,7 @@ class VersesViewModel: NSObject, ObservableObject {
         ]
     }
     
-    private static func getClosingDoha() -> DohaVerse {
+    internal static func getClosingDoha() -> DohaVerse {
         DohaVerse(
             text: "पवन तनय संकट हरन, मंगल मूरति रूप।\nराम लखन सीता सहित, हृदय बसहु सुर भूप॥",
             meaning: "O Son of Wind, remover of troubles, embodiment of auspiciousness, reside in my heart together with Ram, Lakshman and Sita, O king of gods.",
@@ -834,7 +943,7 @@ class VersesViewModel: NSObject, ObservableObject {
     }
     
     // Change from private to internal
-    static func getDohaSimpleTranslation(number: Int) -> String {
+    internal static func getDohaSimpleTranslation(number: Int) -> String {
         switch number {
         case 1, -1:
             return "After cleaning my mind with my teacher's blessings, I tell the story of Ram which gives us four good things in life."
@@ -847,57 +956,120 @@ class VersesViewModel: NSObject, ObservableObject {
         }
     }
     
-    // Add a helper function to get the current verse
+    // Fix the getCurrentVerse method to add proper bounds checking
     private func getCurrentVerse() -> Verse {
-        print("\n=== Getting Current Verse ===")
-        print("Current section: \(currentSection)")
-        print("Current doha index: \(currentDohaIndex)")
-        print("Current chalisa index: \(currentChalisaVerseIndex)")
-        
-        let verse = switch currentSection {
-        case .openingDoha:
-            sections[0].verses[currentDohaIndex]
-        case .chaupai:
-            verses[currentChalisaVerseIndex]
-        case .closingDoha:
-            sections[2].verses[0]
+        // Make sure we have data before trying to access it
+        guard !verses.isEmpty, !sections.isEmpty, sections.count >= 3 else {
+            // Return a default verse if data isn't loaded yet
+            return Verse(number: 0, text: "", meaning: "", simpleTranslation: "", explanation: "", audioFileName: "")
         }
         
-        print("Selected verse number: \(verse.number)")
-        print("Selected verse text: \(verse.text.prefix(30))...")
+        let verse: Verse
+        
+        switch currentSection {
+        case .openingDoha:
+            // Check if sections[0].verses has enough elements
+            guard !sections[0].verses.isEmpty, currentDohaIndex < sections[0].verses.count else {
+                return Verse(number: -1, text: "", meaning: "", simpleTranslation: "", explanation: "", audioFileName: "")
+            }
+            verse = sections[0].verses[currentDohaIndex]
+            
+        case .chaupai:
+            // Check if verses has enough elements
+            guard !verses.isEmpty, currentChalisaVerseIndex < verses.count else {
+                return Verse(number: 1, text: "", meaning: "", simpleTranslation: "", explanation: "", audioFileName: "")
+            }
+            verse = verses[currentChalisaVerseIndex]
+            
+        case .closingDoha:
+            // Check if sections[2].verses has enough elements
+            guard !sections[2].verses.isEmpty else {
+                return Verse(number: -3, text: "", meaning: "", simpleTranslation: "", explanation: "", audioFileName: "")
+            }
+            verse = sections[2].verses[0]
+        }
+        
         return verse
     }
     
     // Update playCurrentSection to use getCurrentVerse
     private func playCurrentSection() {
-        let utterance: AVSpeechUtterance
+        print("Playing current section: \(playbackPosition.section), index: \(playbackPosition.index)")
+        
+        // Reset the intentional stopping flag
+        isIntentionallyStopping = false
+        
+        // Set isPlaying to true
+        isPlaying = true
+        isPaused = false
+        
+        // Get the current verse based on section and index
+        let verse: Verse
+        
+        switch playbackPosition.section {
+        case .openingDoha:
+            // Play opening doha
+            verse = sections[0].verses[playbackPosition.index]
+            
+        case .chaupai:
+            // Play main verse
+            verse = verses[playbackPosition.index]
+            
+        case .closingDoha:
+            // Play closing doha
+            verse = sections[2].verses[playbackPosition.index]
+        }
+        
+        // Set current verse
+        currentVerse = verse
+        
+        // Play the Hindi part first
+        currentPlaybackState = .mainText
+        playHindiPart(for: verse)
+        
+        // Notify observers
+        objectWillChange.send()
+    }
+    
+    // Fix the updateHighlight method to add proper bounds checking
+    func updateHighlight(word: String) {
+        // Get the current text based on section
+        let currentText: String
         
         switch currentSection {
         case .openingDoha:
-            let doha = openingDoha[currentDohaIndex]
-            utterance = if currentPlaybackState == .mainText {
-                AVSpeechUtterance(string: doha.text)
-            } else {
-                AVSpeechUtterance(string: doha.explanation)
+            // Check if openingDoha has enough elements
+            guard !openingDoha.isEmpty, currentDohaIndex < openingDoha.count else {
+                return
             }
+            currentText = openingDoha[currentDohaIndex].text
             
         case .chaupai:
-            let verse = verses[currentChalisaVerseIndex]
-            utterance = if currentPlaybackState == .mainText {
-                AVSpeechUtterance(string: verse.text)
-            } else {
-                AVSpeechUtterance(string: verse.explanation)
+            // Check if verses has enough elements
+            guard !verses.isEmpty, currentChalisaVerseIndex < verses.count else {
+                return
             }
+            currentText = verses[currentChalisaVerseIndex].text
             
         case .closingDoha:
-            utterance = if currentPlaybackState == .mainText {
-                AVSpeechUtterance(string: closingDoha.text)
-            } else {
-                AVSpeechUtterance(string: closingDoha.explanation)
-            }
+            // Use the closingDoha directly
+            currentText = closingDoha.text
         }
         
-        utterance.voice = VoiceManager.shared.getVoice(forLanguage: currentPlaybackState == .mainText ? "hi-IN" : "en-IN")
+        // Find the range of the word in the text
+        if let range = currentText.range(of: word) {
+            let nsRange = NSRange(range, in: currentText)
+            currentRange = nsRange
+            currentWord = word
+        }
+    }
+    
+    // Helper method to play text directly
+    private func playAudio(text: String, language: String) {
+        stopAudio()
+        
+        let utterance = AVSpeechUtterance(string: text)
+        utterance.voice = getVoice(forLanguage: language)
         utterance.rate = speechRate
         synthesizer.speak(utterance)
         isPlaying = true
@@ -906,45 +1078,35 @@ class VersesViewModel: NSObject, ObservableObject {
     func generateQuizQuestions() -> [QuizQuestion] {
         var questions: [QuizQuestion] = []
         
-        // Add questions for main verses
-        for verse in verses {
-            // Simple translation question
-            let (simpleOptions, simpleCorrectIndex) = generateOptions(correctAnswer: verse.simpleTranslation, from: verses.map { $0.simpleTranslation })
-            let simpleQuestion = QuizQuestion(
-                question: "What does this mean in simple words?\n\n\(verse.text)",
-                options: simpleOptions,
-                correctAnswer: simpleCorrectIndex,
-                verseNumber: verse.number
-            )
-            questions.append(simpleQuestion)
+        // Generate at least 5 questions from verses
+        for verse in verses.shuffled().prefix(5) {
+            // Create a simple question about the verse
+            let question = "What is the meaning of verse \(verse.number)?"
+            let correctAnswer = verse.simpleTranslation
             
-            // Explanation question
-            let (explanationOptions, explanationCorrectIndex) = generateOptions(correctAnswer: verse.explanation, from: getAllExplanations())
-            let explanationQuestion = QuizQuestion(
-                question: "What does this verse teach us?\n\n\(verse.text)",
-                options: explanationOptions,
-                correctAnswer: explanationCorrectIndex,
+            // Generate incorrect options
+            var options = [correctAnswer]
+            while options.count < 4 {
+                if let randomVerse = verses.randomElement(),
+                   randomVerse.id != verse.id,
+                   !options.contains(randomVerse.simpleTranslation) {
+                    options.append(randomVerse.simpleTranslation)
+                }
+            }
+            
+            // Shuffle options and track correct answer index
+            options.shuffle()
+            let correctIndex = options.firstIndex(of: correctAnswer) ?? 0
+            
+            questions.append(QuizQuestion(
+                question: question,
+                options: options,
+                correctAnswer: correctIndex,
                 verseNumber: verse.number
-            )
-            questions.append(explanationQuestion)
+            ))
         }
         
-        return questions.shuffled()
-    }
-    
-    private func generateOptions(correctAnswer: String, from allAnswers: [String]) -> (options: [String], correctIndex: Int) {
-        var options = [correctAnswer]
-        var remainingAnswers = allAnswers.filter { $0 != correctAnswer }
-        remainingAnswers.shuffle()
-        
-        // Add 3 different wrong answers
-        options.append(contentsOf: Array(remainingAnswers.prefix(3)))
-        
-        // Shuffle options and find the new index of correct answer
-        let shuffledOptions = options.shuffled()
-        let correctIndex = shuffledOptions.firstIndex(of: correctAnswer)!
-        
-        return (shuffledOptions, correctIndex)
+        return questions
     }
     
     // Helper functions to get all possible answers
@@ -978,21 +1140,63 @@ class VersesViewModel: NSObject, ObservableObject {
         }
     }
     
+    // Add an enum to track which view initiated playback
+    enum PlaybackSource {
+        case none
+        case quiz
+        case completeView
+        case verseDetail
+    }
+    
+    // Add a property to track the source
+    @Published var currentPlaybackSource: PlaybackSource = .none
+    
+    // Update the startCompleteChalisaPlayback method
     func startCompleteChalisaPlayback() {
+        print("Starting complete chalisa playback")
+        
+        // Set the playback source
+        currentPlaybackSource = .completeView
+        
+        // Stop ALL audio playback from other sources first
+        stopAudio(for: .quiz)
+        stopAudio(for: .verseDetail)
+        stopAudio(for: .none)
+        
+        // Then stop any existing complete chalisa playback
+        stopAudio(for: .completeView)
+        
+        // Set up for complete playback
         isPlayingCompleteVersion = true
-        currentChalisaVerseIndex = 0
-        currentSection = .openingDoha
-        currentDohaIndex = 0
-        playCurrentSection()
+        isCompletePlaying = true
+        isCompletePaused = false
+        
+        // Start from the beginning
+        playbackPosition = PlaybackPosition(section: .openingDoha, index: 0)
+        
+        // Start playback with a slight delay
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            self.playCurrentSection(using: .completeView)
+            
+            // Notify observers
+            self.objectWillChange.send()
+        }
     }
     
     func stopCompleteChalisaPlayback() {
-        isPlayingCompleteVersion = false
-        currentChalisaVerseIndex = 0
-        currentDohaIndex = 0
-        currentSection = .openingDoha
-        isPaused = false
+        print("Stopping complete chalisa playback")
+        
+        // Stop audio
         stopAudio()
+        
+        // Reset state
+        isPlayingCompleteVersion = false
+        
+        // Reset to the beginning
+        playbackPosition = PlaybackPosition(section: .openingDoha, index: 0)
+        
+        // Notify observers
+        objectWillChange.send()
     }
     
     // Add section type enum
@@ -1061,10 +1265,20 @@ class VersesViewModel: NSObject, ObservableObject {
     }
     
     // Update getVoice function
-    private func getVoice(forLanguage language: String) -> AVSpeechSynthesisVoice {
-        // No need for optional binding since we're returning a non-optional
-        let voice = VoiceManager.shared.getVoice(forLanguage: language)
-        return voice
+    private func getVoice(forLanguage languageCode: String) -> AVSpeechSynthesisVoice? {
+        // Try to get the specific language voice
+        if let voice = AVSpeechSynthesisVoice(language: languageCode) {
+            return voice
+        }
+        
+        // Fallback to any available voice for that language
+        let voices = AVSpeechSynthesisVoice.speechVoices()
+        if let voice = voices.first(where: { $0.language.starts(with: languageCode.prefix(2)) }) {
+            return voice
+        }
+        
+        // Final fallback to default voice
+        return AVSpeechSynthesisVoice(language: "en-US")
     }
     
     func markVerseAsCompleted(_ verse: Verse) {
@@ -1081,103 +1295,600 @@ class VersesViewModel: NSObject, ObservableObject {
     
     // Add proper cleanup
     deinit {
-        stopAudio()
+        // Can't use Task.detached here because deinit is synchronous
+        // Instead, we'll use a non-isolated version of stopAudio
+        synthesizer.stopSpeaking(at: .immediate)
+        audioPlayer?.stop()
         synthesizer.delegate = nil
         try? audioSession?.setActive(false)
     }
     
+    // Alternative approach if the method needs to be callable from any thread
     func playCompleteChalisaAudio() {
-        if isPlaying {
-            stopAudio()
-        } else {
-            isPlayingCompleteVersion = true
-            playbackPosition = PlaybackPosition(section: .openingDoha, index: 0)
-            playCurrentSection()
+        Task { @MainActor in
+            if isPlaying {
+                stopAudio()
+            } else {
+                isPlayingCompleteVersion = true
+                playbackPosition = PlaybackPosition(section: .openingDoha, index: 0)
+                playCurrentSection()
+            }
         }
     }
     
-    func updateHighlight(word: String) {
-        // Get the current text based on section
-        let currentText: String
+    // Add a centralized audio state management
+    @MainActor
+    func stopAllAudio() {
+        print("Stopping ALL audio playback")
+        
+        // Set flags to prevent further processing
+        isIntentionallyStopping = true
+        
+        // Stop all synthesizers
+        synthesizer.stopSpeaking(at: .immediate)
+        quizSynthesizer.stopSpeaking(at: .immediate)
+        completeSynthesizer.stopSpeaking(at: .immediate)
+        detailSynthesizer.stopSpeaking(at: .immediate)
+        
+        // Stop audio player if it exists
+        audioPlayer?.stop()
+        
+        // Reset all state
+        isPlaying = false
+        isPaused = false
+        isQuizPlaying = false
+        isQuizPaused = false
+        isCompletePlaying = false
+        isCompletePaused = false
+        isPlayingCompleteVersion = false
+        
+        // Reset current verse and word
+        currentVerse = nil
+        currentQuizVerse = nil
+        currentCompleteVerse = nil
+        currentWord = nil
+        currentRange = nil
+        
+        // Reset the playback source and state
+        currentPlaybackSource = .none
+        currentPlaybackState = .mainText
+        
+        // Notify observers
+        objectWillChange.send()
+    }
+    
+    // Use Task for async operations
+    func loadVerses() {
+        Task {
+            let verses = self.dataService.loadVerses()
+            self.verses = verses
+            self.setupSections()
+        }
+    }
+    
+    // Add a handleError method
+    private func handleError(_ error: AppError) {
+        print("Error: \(error)")
+        // You can add more error handling logic here
+    }
+    
+    // Add a setupSections method
+    private func setupSections() {
+        // Create sections based on loaded verses
+        self.sections = [
+            VerseSection(title: "Opening Prayers", verses: []),
+            VerseSection(title: "Main Verses", verses: self.verses),
+            VerseSection(title: "Closing Prayer", verses: [])
+        ]
+    }
+    
+    // Add a public property to check if updates are in progress
+    private var isUpdatingState = false
+    
+    // Add a public computed property to check state
+    var isUpdatingAudio: Bool {
+        return isUpdatingState || synthesizer.isSpeaking
+    }
+    
+    // Add this property to track the last highlight position
+    @Published var lastHighlightPosition: Int? = nil
+    
+    // Add a computed property to track playback progress
+    var currentPlaybackProgress: Double {
+        // Calculate progress based on current section and index
         switch currentSection {
         case .openingDoha:
-            currentText = openingDoha[currentDohaIndex].text
+            // Opening prayers are 2 out of 43 total items (2 opening + 40 verses + 1 closing)
+            return Double(currentDohaIndex) * (2.0 / 43.0) * 100.0
+            
         case .chaupai:
-            currentText = verses[currentChalisaVerseIndex].text
+            // Main verses are 40 out of 43 total items
+            // First 2 items (4.65%) are opening prayers
+            let openingPercentage = 4.65
+            let versePercentage = (40.0 / 43.0) * 100.0
+            let currentVerseProgress = Double(currentChalisaVerseIndex) / 40.0 * versePercentage
+            return openingPercentage + currentVerseProgress
+            
         case .closingDoha:
-            currentText = closingDoha.text
+            // If we're at the closing prayer, we're at ~95% (last 5% is for the closing prayer itself)
+            return 95.0
+        }
+    }
+    
+    // Add a method to reset playback position
+    func resetPlaybackPosition() {
+        // Reset to the beginning
+        currentSection = .openingDoha
+        currentDohaIndex = 0
+        currentChalisaVerseIndex = 0
+        
+        // Reset playback state
+        isPlayingCompleteVersion = false
+        
+        // Notify observers
+        objectWillChange.send()
+    }
+    
+    // Add a method to play only the Hindi part of a verse
+    func playHindiOnly(for verse: Verse) throws {
+        print("Playing Hindi only for verse: \(verse.number)")
+        
+        // Set the playback source to quiz
+        currentPlaybackSource = .quiz
+        
+        // Stop ALL audio playback from other sources first
+        stopAudio(for: .completeView)
+        stopAudio(for: .verseDetail)
+        stopAudio(for: .none)
+        
+        // Then stop any existing quiz playback
+        stopAudio(for: .quiz)
+        
+        // Set the flag BEFORE starting playback
+        playingHindiOnly = true
+        
+        // Set state
+        currentQuizVerse = verse  // Use a separate property for quiz
+        isQuizPlaying = true      // Use a separate property for quiz
+        isQuizPaused = false      // Use a separate property for quiz
+        
+        // Play only the Hindi part using the quiz synthesizer
+        playHindiPart(for: verse, using: .quiz)
+    }
+    
+    // Add a property to track if we're only playing Hindi
+    private var playingHindiOnly = false
+    
+    // Add a method to reset the intentional stopping state
+    func resetIntentionalStoppingState() {
+        print("Resetting intentional stopping state")
+        isIntentionallyStopping = false
+    }
+    
+    // Add a method to get the appropriate synthesizer based on playback source
+    private func getSynthesizer(for source: PlaybackSource) -> AVSpeechSynthesizer {
+        switch source {
+        case .quiz:
+            return quizSynthesizer
+        case .completeView:
+            return completeSynthesizer
+        case .verseDetail:
+            return detailSynthesizer
+        case .none:
+            return synthesizer // Use the default synthesizer
+        }
+    }
+    
+    // Update the playHindiPart method to use the appropriate synthesizer
+    private func playHindiPart(for verse: Verse, using source: PlaybackSource = .none) {
+        print("Playing Hindi part for verse: \(verse.number) using source: \(source)")
+        
+        // Set the playback state to main text
+        currentPlaybackState = .mainText
+        
+        // Create utterance for Hindi text
+        let utterance = AVSpeechUtterance(string: verse.text)
+        utterance.voice = getVoice(forLanguage: "hi-IN")
+        utterance.rate = 0.5
+        
+        // Get the appropriate synthesizer
+        let synth = getSynthesizer(for: source)
+        
+        // Start speaking
+        synth.speak(utterance)
+    }
+    
+    // Update the playCurrentSection method to only play Hindi for complete chalisa
+    private func playCurrentSection(using source: PlaybackSource = .completeView) {
+        print("Playing current section: \(playbackPosition.section), index: \(playbackPosition.index) using source: \(source)")
+        
+        // Get the current verse based on section and index
+        let verse: Verse
+        
+        switch playbackPosition.section {
+        case .openingDoha:
+            verse = sections[0].verses[playbackPosition.index]
+        case .chaupai:
+            verse = verses[playbackPosition.index]
+        case .closingDoha:
+            verse = sections[2].verses[playbackPosition.index]
         }
         
-        // Find the range of the word in the text
-        if let range = currentText.range(of: word) {
-            let nsRange = NSRange(range, in: currentText)
-            currentRange = nsRange
-            currentWord = word
+        // Set current verse based on source
+        if source == .completeView {
+            print("Setting currentCompleteVerse to verse \(verse.number)")
+            currentCompleteVerse = verse
+            
+            // Also update the currentVerse for compatibility with existing code
+            currentVerse = verse
+            
+            // For complete chalisa, we only want to play the Hindi part
+            playHindiPart(for: verse, using: .completeView)
+        } else if source == .verseDetail {
+            // For verse detail view, we want to play both Hindi and English
+            currentVerse = verse
+            currentPlaybackState = .mainText  // Start with Hindi
+            playHindiPart(for: verse, using: source)
+        } else {
+            // For other sources (like quiz), just play Hindi
+            currentVerse = verse
+            playHindiPart(for: verse, using: source)
         }
+        
+        // Notify observers
+        objectWillChange.send()
+    }
+    
+    // Add a method to stop audio for a specific source
+    func stopAudio(for source: PlaybackSource? = nil) {
+        let sourceToStop = source ?? currentPlaybackSource
+        print("Stopping audio for source: \(sourceToStop)")
+        
+        switch sourceToStop {
+        case .quiz:
+            isQuizPlaying = false
+            isQuizPaused = false
+            quizSynthesizer.stopSpeaking(at: .immediate)
+            currentQuizVerse = nil
+            
+        case .completeView:
+            isCompletePlaying = false
+            isCompletePaused = false
+            isPlayingCompleteVersion = false
+            completeSynthesizer.stopSpeaking(at: .immediate)
+            currentCompleteVerse = nil
+            
+        case .verseDetail:
+            isPlaying = false
+            isPaused = false
+            detailSynthesizer.stopSpeaking(at: .immediate)
+            currentVerse = nil
+            
+        case .none:
+            // Stop all audio
+            isQuizPlaying = false
+            isQuizPaused = false
+            isCompletePlaying = false
+            isCompletePaused = false
+            isPlaying = false
+            isPaused = false
+            isPlayingCompleteVersion = false
+            
+            quizSynthesizer.stopSpeaking(at: .immediate)
+            completeSynthesizer.stopSpeaking(at: .immediate)
+            detailSynthesizer.stopSpeaking(at: .immediate)
+            synthesizer.stopSpeaking(at: .immediate)
+            
+            currentQuizVerse = nil
+            currentCompleteVerse = nil
+            currentVerse = nil
+        }
+        
+        // Notify observers
+        objectWillChange.send()
+    }
+    
+    // Add methods for pausing and resuming audio for specific sources
+    func pauseAudio(for source: PlaybackSource) {
+        print("Pausing audio for source: \(source)")
+        
+        switch source {
+        case .quiz:
+            isQuizPaused = true
+            quizSynthesizer.pauseSpeaking(at: .word)
+            print("Quiz audio paused, isQuizPaused: \(isQuizPaused)")
+            
+        case .completeView:
+            isCompletePaused = true
+            completeSynthesizer.pauseSpeaking(at: .word)
+            print("Complete audio paused, isCompletePaused: \(isCompletePaused)")
+            
+        case .verseDetail:
+            isPaused = true
+            detailSynthesizer.pauseSpeaking(at: .word)
+            
+        case .none:
+            isPaused = true
+            synthesizer.pauseSpeaking(at: .word)
+        }
+        
+        // Notify observers
+        objectWillChange.send()
+    }
+    
+    func resumeAudio(for source: PlaybackSource) {
+        print("Resuming audio for source: \(source)")
+        
+        switch source {
+        case .quiz:
+            isQuizPaused = false
+            if !quizSynthesizer.isSpeaking {
+                print("Quiz synthesizer not speaking, restarting")
+                if let verse = currentQuizVerse {
+                    playHindiPart(for: verse, using: .quiz)
+                }
+            } else {
+                quizSynthesizer.continueSpeaking()
+            }
+            print("Quiz audio resumed, isQuizPaused: \(isQuizPaused)")
+            
+        case .completeView:
+            isCompletePaused = false
+            if !completeSynthesizer.isSpeaking {
+                print("Complete synthesizer not speaking, restarting")
+                playCurrentSection(using: .completeView)
+            } else {
+                completeSynthesizer.continueSpeaking()
+            }
+            print("Complete audio resumed, isCompletePaused: \(isCompletePaused)")
+            
+        case .verseDetail:
+            isPaused = false
+            if !detailSynthesizer.isSpeaking {
+                print("Detail synthesizer not speaking, restarting")
+                if let verse = currentVerse {
+                    playHindiPart(for: verse, using: .verseDetail)
+                }
+            } else {
+                detailSynthesizer.continueSpeaking()
+            }
+            
+        case .none:
+            isPaused = false
+            if !synthesizer.isSpeaking {
+                print("Default synthesizer not speaking, restarting")
+                if let verse = currentVerse {
+                    playHindiPart(for: verse, using: .none)
+                }
+            } else {
+                synthesizer.continueSpeaking()
+            }
+        }
+        
+        // Notify observers
+        objectWillChange.send()
+    }
+    
+    // Update the playVerse method to play both Hindi and English parts
+    func playVerse(_ verse: Verse) {
+        print("Playing verse: \(verse.number) in detail view")
+        
+        // Stop any existing playback
+        stopAudio(for: .verseDetail)
+        
+        // Set the current verse
+        currentVerse = verse
+        
+        // Set the playback state to main text first
+        currentPlaybackState = .mainText
+        
+        // Set the playback source to verseDetail
+        currentPlaybackSource = .verseDetail
+        
+        // Set state
+        isPlaying = true
+        isPaused = false
+        isIntentionallyStopping = false
+        playingHindiOnly = false  // Important: set to false to play both parts
+        
+        // Play the Hindi part first
+        playHindiPart(for: verse, using: .verseDetail)
+        
+        // The delegate will automatically play the English part after Hindi finishes
+    }
+    
+    // Fix the resetAudioState method to use the correct enum values
+    func resetAudioState() {
+        // Reset all audio-related state
+        currentWord = nil
+        currentRange = nil
+        
+        // Set the playback state to mainText (default state)
+        currentPlaybackState = .mainText
+        
+        // Reset playback flags
+        isPlaying = false
+        isPaused = false
+        isQuizPlaying = false
+        isQuizPaused = false
+        isCompletePlaying = false
+        isCompletePaused = false
+        playingHindiOnly = false
+        isPlayingCompleteVersion = false
+        
+        // Stop all synthesizers
+        synthesizer.stopSpeaking(at: .immediate)
+        quizSynthesizer.stopSpeaking(at: .immediate)
+        completeSynthesizer.stopSpeaking(at: .immediate)
+        detailSynthesizer.stopSpeaking(at: .immediate)
+        
+        // Reset current verses
+        currentVerse = nil
+        currentQuizVerse = nil
+        currentCompleteVerse = nil
+        
+        // Reset playback source
+        currentPlaybackSource = .verseDetail
     }
 }
 
 extension VersesViewModel: AVAudioPlayerDelegate {
-    func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
-        isPlaying = false
+    nonisolated func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
+        Task { @MainActor in
+            isPlaying = false
+        }
     }
 }
 
 extension VersesViewModel: AVSpeechSynthesizerDelegate {
-    func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, 
+    nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, 
                           willSpeakRangeOfSpeechString characterRange: NSRange, 
                           utterance: AVSpeechUtterance) {
-        guard !isUpdatingState else { return }
-        isUpdatingState = true
-        
-        let nsString = utterance.speechString as NSString
-        if characterRange.location + characterRange.length <= nsString.length {
-            let word = nsString.substring(with: characterRange)
-            DispatchQueue.main.async { [weak self] in
-                guard let self = self else { return }
+        Task { @MainActor in
+            let nsString = utterance.speechString as NSString
+            if characterRange.location + characterRange.length <= nsString.length {
+                let word = nsString.substring(with: characterRange)
                 self.currentWord = word
                 self.currentRange = characterRange
-                self.isUpdatingState = false
             }
-        } else {
-            isUpdatingState = false
         }
     }
     
+    // Update the speechSynthesizer delegate method to properly handle transitions
     func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
-        DispatchQueue.main.async { [weak self] in
-            guard let self = self else { return }
+        // Run on main thread to update UI
+        DispatchQueue.main.async {
+            print("Speech finished. synthesizer: \(synthesizer), playingHindiOnly: \(self.playingHindiOnly), currentPlaybackState: \(self.currentPlaybackState)")
             
+            // Clear highlighting
             self.currentWord = nil
             self.currentRange = nil
             
-            if self.isPlayingCompleteVersion {
+            // Check which synthesizer finished
+            let source: PlaybackSource
+            if synthesizer === self.quizSynthesizer {
+                source = .quiz
+                print("Quiz synthesizer finished")
+            } else if synthesizer === self.completeSynthesizer {
+                source = .completeView
+                print("Complete synthesizer finished")
+            } else if synthesizer === self.detailSynthesizer {
+                source = .verseDetail
+                print("Detail synthesizer finished")
+            } else {
+                source = .none
+                print("Default synthesizer finished")
+            }
+            
+            // If we're intentionally stopping, don't process further
+            if self.isIntentionallyStopping {
+                print("Ignoring didFinish callback because we're intentionally stopping")
+                return
+            }
+            
+            // Handle verse detail playback - play Hindi then English
+            if source == .verseDetail {
+                if let verse = self.currentVerse {
+                    if self.currentPlaybackState == .mainText {
+                        // Continue with explanation after Hindi part
+                        print("Hindi part finished in verse detail, playing English explanation")
+                        self.currentPlaybackState = .explanation
+                        self.playEnglishPart(for: verse, using: .verseDetail)
+                    } else {
+                        // We've finished both parts, stop playback
+                        print("Both parts finished in verse detail, stopping playback")
+                        self.stopAudio(for: .verseDetail)
+                    }
+                }
+                return
+            }
+            
+            // Handle complete chalisa playback - only play Hindi parts
+            if source == .completeView || self.isPlayingCompleteVersion {
+                // For complete chalisa, just move to the next verse
                 if self.playbackPosition.moveToNext(
                     openingDohaCount: self.openingDoha.count,
                     versesCount: self.verses.count
                 ) {
-                    self.playCurrentSection()
+                    self.playCurrentSection(using: .completeView)
                 } else {
-                    self.stopCompleteChalisaPlayback()
+                    self.stopAudio(for: .completeView)
                 }
-            } else {
-                // Single verse playback
+                return
+            }
+            
+            // Handle quiz playback - only play Hindi
+            if source == .quiz {
+                print("Quiz playback finished")
+                self.isQuizPlaying = false
+                self.currentQuizVerse = nil
+                return
+            }
+            
+            // Default case - handle regular verse playback
+            if let verse = self.currentVerse {
                 if self.currentPlaybackState == .mainText {
-                    self.currentPlaybackState = .explanation
-                    if let verse = self.currentVerse {
-                        do {
-                            try self.playTextToSpeech(text: verse.explanation, language: "en-US")
-                        } catch {
-                            print("Failed to play explanation: \(error)")
-                            self.stopAudio()
-                        }
+                    // If we're only playing Hindi, stop here
+                    if self.playingHindiOnly {
+                        print("Hindi-only playback finished - stopping")
+                        self.playingHindiOnly = false
+                        self.stopAudio()
+                        return
+                    } else {
+                        // Otherwise, continue with explanation
+                        print("Hindi part finished, continuing with English explanation")
+                        self.currentPlaybackState = .explanation
+                        self.playEnglishPart(for: verse)
                     }
                 } else {
-                    self.currentPlaybackState = .mainText
+                    // We've finished both parts, stop playback
+                    print("Both parts finished, stopping playback")
                     self.stopAudio()
-                    self.currentVerse = nil
                 }
+            } else {
+                // No verse, stop playback
+                print("No verse, stopping playback")
+                self.stopAudio()
             }
         }
     }
-} 
+}
+
+protocol DataServiceProtocol {
+    func loadVerses() -> [Verse]
+    func saveProgress(for verses: [Verse])
+    func loadProgress() -> Set<Int>
+}
+
+// Make code more testable with protocols and dependency injection
+protocol VersesRepositoryProtocol {
+    func getAllVerses() -> [Verse]
+    func getOpeningDohas() -> [DohaVerse]
+    func getClosingDoha() -> DohaVerse
+}
+
+// Update the MockDataService to generate its own verses
+class MockDataService: DataServiceProtocol {
+    func loadVerses() -> [Verse] {
+        // Generate some default verses
+        return (1...40).map { number in
+            Verse(
+                number: number,
+                text: "Verse \(number) text",
+                meaning: "Meaning for verse \(number)",
+                simpleTranslation: "Simple translation for verse \(number)",
+                explanation: "Explanation for verse \(number)",
+                audioFileName: "verse_\(number)"
+            )
+        }
+    }
+    
+    func saveProgress(for verses: [Verse]) {
+        // Mock implementation
+    }
+    
+    func loadProgress() -> Set<Int> {
+        return []
+    }
+}
+

@@ -1,289 +1,259 @@
 import SwiftUI
 import AVFoundation
+import SafariServices
 
 struct CompleteChalisaView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.presentationMode) private var presentationMode
     @EnvironmentObject var viewModel: VersesViewModel
+    
+    // YouTube video ID for full Hanuman Chalisa
+    private let youtubeVideoID = "UzdLbpQ-enM"
+    @State private var showingSafariView = false
+    
+    // Existing state variables
     @State private var showingContent = true
     @State private var currentVerseId = UUID()
     @State private var currentWordId = UUID()
     @State private var scrollProxy: ScrollViewProxy?
+    @State private var showingVerseDetails = false
+    @State private var selectedVerse: Verse?
+    
+    // Add a toggle to switch between interactive and simple view
+    @State private var showSimpleView = true // Default to simple view
     
     var body: some View {
-        ScrollViewReader { proxy in
-            ScrollView(showsIndicators: true) {
-                VStack(alignment: .leading, spacing: 24) {
-                    // Back button
-                    Button(action: {
-                        viewModel.stopCompleteChalisaPlayback()  // Stop audio before dismissing
-                        dismiss()  // Try dismiss() first
-                        presentationMode.wrappedValue.dismiss()  // Fallback for older iOS versions
-                    }) {
-                        HStack(spacing: 8) {
-                            Image(systemName: "chevron.left")
-                            Text("Back to Verses")
-                        }
-                        .foregroundColor(.orange)
-                        .font(.headline)
-                    }
-                    .padding(.vertical, 12)
+        VStack(spacing: 20) {
+            // Header
+            Text("Complete Hanuman Chalisa")
+                .font(.title)
+                .fontWeight(.bold)
+                .foregroundColor(.orange)
+                .padding(.top)
+            
+            // Playback controls
+            VStack(spacing: 16) {
+                // Play/Pause button
+                Button(action: {
+                    print("Play/Pause button tapped")
                     
-                    VStack(alignment: .leading, spacing: 24) {
-                        // Title and controls
-                        HStack {
-                            Text("Complete Chalisa")
-                                .font(.title)
-                                .foregroundColor(.orange)
-                            
-                            Spacer()
-                            
-                            // Playback controls
-                            HStack(spacing: 20) {
-                                // Stop button
-                                Button(action: {
-                                    viewModel.stopCompleteChalisaPlayback()
-                                }) {
-                                    Image(systemName: "stop.circle.fill")
-                                        .font(.system(size: 44))
-                                        .foregroundColor(.orange)
-                                }
-                                .opacity(viewModel.isPlayingCompleteVersion ? 1 : 0)
-                                
-                                // Play/Pause button
-                                Button(action: {
-                                    if viewModel.isPlaying {
-                                        if viewModel.isPaused {
-                                            viewModel.resumeAudio()
-                                        } else {
-                                            viewModel.pauseAudio()
-                                        }
-                                    } else {
-                                        viewModel.startCompleteChalisaPlayback()
-                                    }
-                                }) {
-                                    Image(systemName: viewModel.isPlaying ? 
-                                          (viewModel.isPaused ? "play.circle.fill" : "pause.circle.fill") : 
-                                          "play.circle.fill")
-                                        .font(.system(size: 44))
-                                        .foregroundColor(.orange)
-                                }
-                            }
-                            .animation(.easeInOut, value: viewModel.isPlayingCompleteVersion)
+                    if viewModel.isCompletePlaying {
+                        if viewModel.isCompletePaused {
+                            viewModel.resumeAudio(for: .completeView)
+                        } else {
+                            viewModel.pauseAudio(for: .completeView)
                         }
-                        
-                        // Progress view
-                        ChalisaProgressView()
-                        
-                        // Navigation controls
-                        HStack(spacing: 16) {
-                            // Back button
-                            Button(action: {
-                                viewModel.goToPreviousVerse()
-                            }) {
-                                Label("Previous", systemImage: "chevron.left.circle.fill")
-                                    .labelStyle(.iconOnly)
-                                    .font(.title2)
-                                    .foregroundColor(.orange)
-                            }
-                            .disabled(!canGoBack)
-                            .opacity(canGoBack ? 1 : 0.3)
-                            
-                            Spacer()
-                            
-                            // Next button
-                            Button(action: {
-                                print("\n=== Navigation Button Pressed ===")
-                                print("Before navigation:")
-                                print("Current section: \(viewModel.currentSection)")
-                                print("Current doha index: \(viewModel.currentDohaIndex)")
-                                print("Current verse index: \(viewModel.currentChalisaVerseIndex)")
-                                print("Can go forward: \(canGoForward)")
-                                
-                                viewModel.goToNextVerse()
-                                currentVerseId = UUID()
-                                
-                                print("\nAfter button press:")
-                                print("Current section: \(viewModel.currentSection)")
-                                print("Current doha index: \(viewModel.currentDohaIndex)")
-                                print("Current verse index: \(viewModel.currentChalisaVerseIndex)")
-                            }) {
-                                Label("Next", systemImage: "chevron.right.circle.fill")
-                                    .labelStyle(.iconOnly)
-                                    .font(.title2)
-                                    .foregroundColor(.orange)
-                            }
-                            .disabled(!canGoForward)
-                            .opacity(canGoForward ? 1 : 0.3)
-                            .id(currentVerseId)
-                        }
-                        .padding(.horizontal)
-                        
-                        // Show content immediately, not just when playing
-                        if showingContent {
-                            VStack(spacing: 24) {
-                                Text(attributedText)
-                                    .font(.title2)
-                                    .lineSpacing(8)
-                                    .padding(.vertical)
-                                    .id("main-text")
-                                
-                                // Add Simple Translation Section
-                                VStack(alignment: .leading, spacing: 16) {
-                                    Text("Simple Translation")
-                                        .font(.headline)
-                                        .foregroundColor(.orange)
-                                    Text(currentSimpleTranslation)
-                                        .font(.body)
-                                        .lineSpacing(6)
-                                }
-                                .padding()
-                                .background(Color(.systemBackground))
-                                .cornerRadius(10)
-                                
-                                // Add What it means Section
-                                VStack(alignment: .leading, spacing: 16) {
-                                    Text("What it means")
-                                        .font(.headline)
-                                        .foregroundColor(.orange)
-                                    Text(highlightedExplanation)
-                                        .font(.body)
-                                        .lineSpacing(6)
-                                        .id("explanation-text")
-                                }
-                                .padding()
-                                .background(Color(.systemBackground))
-                                .cornerRadius(10)
-                            }
-                        }
+                    } else {
+                        print("Starting complete chalisa playback")
+                        viewModel.startCompleteChalisaPlayback()
                     }
+                }) {
+                    HStack(spacing: 12) {
+                        Image(systemName: viewModel.isCompletePlaying ? 
+                              (viewModel.isCompletePaused ? "play.circle.fill" : "pause.circle.fill") : 
+                              "play.circle.fill")
+                            .font(.system(size: 50))
+                            .foregroundColor(.orange)
+                        
+                        Text(viewModel.isCompletePlaying ? 
+                             (viewModel.isCompletePaused ? "Resume" : "Pause") : 
+                             "Play Complete Chalisa")
+                            .font(.title2)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.orange)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(Color.orange.opacity(0.1))
+                    .cornerRadius(15)
                 }
-                .padding()
-            }
-            .onAppear {
-                scrollProxy = proxy
-                // Set initial state when view appears
-                viewModel.currentSection = .openingDoha
-                viewModel.currentDohaIndex = 0
-                viewModel.currentChalisaVerseIndex = 0
-            }
-            .onDisappear {
-                viewModel.stopCompleteChalisaPlayback()
-            }
-            .onChange(of: viewModel.currentWord) { oldWord, newWord in
-                guard let proxy = scrollProxy else { return }
+                .buttonStyle(PlainButtonStyle())
                 
-                if newWord != nil {
-                    let targetId = viewModel.currentPlaybackState == .mainText ? 
-                        "main-text" : 
-                        "explanation-text"
+                // YouTube video button - following Apple HIG
+                Button(action: {
+                    showingSafariView = true
+                }) {
+                    HStack(spacing: 12) {
+                        Image(systemName: "play.rectangle.fill")
+                            .font(.system(size: 24))
+                            .foregroundColor(.red)
+                        
+                        Text("Watch on YouTube")
+                            .font(.headline)
+                            .foregroundColor(.primary)
+                        
+                        Spacer()
+                        
+                        Image(systemName: "arrow.up.right.square")
+                            .font(.system(size: 16))
+                            .foregroundColor(.secondary)
+                    }
+                    .padding()
+                    .background(Color(.systemGray6))
+                    .cornerRadius(12)
+                }
+                .buttonStyle(PlainButtonStyle())
+                .padding(.horizontal)
+                .accessibilityLabel("Watch Hanuman Chalisa on YouTube")
+                .sheet(isPresented: $showingSafariView) {
+                    SafariView(url: URL(string: "https://www.youtube.com/watch?v=\(youtubeVideoID)")!)
+                        .edgesIgnoringSafeArea(.all)
+                }
+                
+                // Progress indicator
+                if viewModel.isCompletePlaying {
+                    VStack(spacing: 8) {
+                        // Show current verse being played
+                        if let currentVerse = viewModel.currentCompleteVerse {
+                            let verseTitle = currentVerse.number > 0 ? "Verse \(currentVerse.number)" : 
+                                            (currentVerse.number == -1 ? "Opening Prayer 1" :
+                                             currentVerse.number == -2 ? "Opening Prayer 2" : "Closing Prayer")
+                            
+                            Text("Now playing: " + verseTitle)
+                                .font(.headline)
+                                .foregroundColor(.orange)
+                        }
+                        
+                        // Progress bar
+                        ProgressView(value: Double(viewModel.currentPlaybackProgress), total: 100)
+                            .progressViewStyle(LinearProgressViewStyle(tint: .orange))
+                            .padding(.horizontal)
+                    }
+                    .padding()
+                    .background(Color.orange.opacity(0.05))
+                    .cornerRadius(10)
+                }
+            }
+            .padding()
+            
+            // Simple text view with ScrollViewReader
+            ScrollViewReader { proxy in
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 24) {
+                        // Opening prayers
+                        Text("Opening Prayers")
+                            .font(.headline)
+                            .foregroundColor(.orange)
+                            .padding(.vertical, 8)
+                            .id("section-opening")
+                        
+                        ForEach(viewModel.sections[0].verses) { verse in
+                            Text(verse.text)
+                                .font(.title3)
+                                .lineSpacing(8)
+                                .padding(.vertical, 8)
+                                .id("verse-\(verse.number)")
+                                .background(
+                                    (viewModel.isCompletePlaying && 
+                                     viewModel.currentCompleteVerse?.id == verse.id) ||
+                                    (viewModel.isPlaying && 
+                                     viewModel.currentVerse?.id == verse.id && 
+                                     viewModel.currentPlaybackSource == .completeView) ?
+                                        Color.orange.opacity(0.1) : Color.clear
+                                )
+                                .cornerRadius(8)
+                        }
+                        
+                        // Main verses
+                        Text("Main Verses")
+                            .font(.headline)
+                            .foregroundColor(.orange)
+                            .padding(.vertical, 8)
+                            .id("section-main")
+                        
+                        ForEach(viewModel.verses) { verse in
+                            Text(verse.text)
+                                .font(.title3)
+                                .lineSpacing(8)
+                                .padding(.vertical, 4)
+                                .id("verse-\(verse.number)")
+                                .background(
+                                    (viewModel.isCompletePlaying && 
+                                     viewModel.currentCompleteVerse?.id == verse.id) ||
+                                    (viewModel.isPlaying && 
+                                     viewModel.currentVerse?.id == verse.id && 
+                                     viewModel.currentPlaybackSource == .completeView) ?
+                                        Color.orange.opacity(0.1) : Color.clear
+                                )
+                                .cornerRadius(8)
+                        }
+                        
+                        // Closing prayer
+                        Text("Closing Prayer")
+                            .font(.headline)
+                            .foregroundColor(.orange)
+                            .padding(.vertical, 8)
+                            .id("section-closing")
+                        
+                        ForEach(viewModel.sections[2].verses) { verse in
+                            Text(verse.text)
+                                .font(.title3)
+                                .lineSpacing(8)
+                                .padding(.vertical, 8)
+                                .id("verse-\(verse.number)")
+                                .background(
+                                    (viewModel.isCompletePlaying && 
+                                     viewModel.currentCompleteVerse?.id == verse.id) ||
+                                    (viewModel.isPlaying && 
+                                     viewModel.currentVerse?.id == verse.id && 
+                                     viewModel.currentPlaybackSource == .completeView) ?
+                                        Color.orange.opacity(0.1) : Color.clear
+                                )
+                                .cornerRadius(8)
+                        }
+                    }
+                    .padding()
+                }
+                .onChange(of: viewModel.currentCompleteVerse) { oldVerse, newVerse in
+                    if let verse = newVerse {
+                        print("Scrolling to verse \(verse.number)")
+                        // Scroll to the current verse with animation
+                        withAnimation {
+                            proxy.scrollTo("verse-\(verse.number)", anchor: .top)
+                        }
+                    }
+                }
+                .onChange(of: viewModel.currentVerse) { oldVerse, newVerse in
+                    if let verse = newVerse, viewModel.currentPlaybackSource == .completeView {
+                        print("Scrolling to verse \(verse.number) from currentVerse change")
+                        // Scroll to the current verse with animation
+                        withAnimation {
+                            proxy.scrollTo("verse-\(verse.number)", anchor: .top)
+                        }
+                    }
+                }
+                .onAppear {
+                    // Store the proxy for later use
+                    scrollProxy = proxy
                     
-                    withAnimation(.easeInOut(duration: 0.3)) {
-                        proxy.scrollTo(targetId, anchor: .center)
+                    // If already playing, scroll to current verse
+                    if let currentVerse = viewModel.currentCompleteVerse {
+                        proxy.scrollTo("verse-\(currentVerse.number)", anchor: .top)
                     }
                 }
             }
         }
-        .background(Color(.systemGray6))
-        .navigationBarHidden(true)
-    }
-    
-    private var attributedText: AttributedString {
-        return highlightedText(currentText)
-    }
-    
-    private var currentText: String {
-        switch viewModel.currentSection {
-        case .openingDoha:
-            return viewModel.openingDoha[viewModel.currentDohaIndex].text
-        case .chaupai:
-            return viewModel.verses[viewModel.currentChalisaVerseIndex].text
-        case .closingDoha:
-            return viewModel.closingDoha.text
-        }
-    }
-    
-    private var currentMeaning: String? {
-        switch viewModel.currentSection {
-        case .openingDoha:
-            return viewModel.openingDoha[viewModel.currentDohaIndex].meaning
-        case .chaupai:
-            return viewModel.verses[viewModel.currentChalisaVerseIndex].meaning
-        case .closingDoha:
-            return viewModel.closingDoha.meaning
-        }
-    }
-    
-    private var currentExplanation: String? {
-        switch viewModel.currentSection {
-        case .openingDoha:
-            return viewModel.openingDoha[viewModel.currentDohaIndex].explanation
-        case .chaupai:
-            return viewModel.verses[viewModel.currentChalisaVerseIndex].explanation
-        case .closingDoha:
-            return viewModel.closingDoha.explanation
-        }
-    }
-    
-    private var canGoBack: Bool {
-        switch viewModel.currentSection {
-        case .openingDoha:
-            return viewModel.currentDohaIndex > 0  // Can go back from Doha 2 to Doha 1
-        case .chaupai:
-            return viewModel.currentChalisaVerseIndex > 0 || viewModel.currentSection == .chaupai  // Can always go back, including Verse 1 to Doha 2
-        case .closingDoha:
-            return true  // Can always go back from Doha 3 to Verse 40
-        }
-    }
-    
-    private var canGoForward: Bool {
-        switch viewModel.currentSection {
-        case .openingDoha:
-            return true  // Can always go forward (Doha 1 → Doha 2 → Verse 1)
-        case .chaupai:
-            return viewModel.currentChalisaVerseIndex < 39 || viewModel.currentSection == .chaupai  // Can always go forward, including Verse 40 to Doha 3
-        case .closingDoha:
-            return false  // End of chain
-        }
-    }
-    
-    private var highlightedExplanation: AttributedString {
-        return highlightedText(currentExplanation ?? "")
-    }
-    
-    private func highlightedText(_ text: String) -> AttributedString {
-        var attributed = AttributedString(text)
-        
-        if let currentWord = viewModel.currentWord,
-           let currentRange = viewModel.currentRange {
-            
-            let isHindiText = text.containsDevanagari()
-            let isHindiWord = currentWord.containsDevanagari()
-            
-            if isHindiText == isHindiWord {
-                let nsString = text as NSString
-                if currentRange.location + currentRange.length <= nsString.length {
-                    let word = nsString.substring(with: currentRange)
-                    if let range = text.range(of: word) {
-                        let attributedRange = Range(range, in: attributed)!
-                        attributed[attributedRange].foregroundColor = .blue
-                    }
-                }
+        .navigationTitle("Complete Chalisa")
+        .navigationBarTitleDisplayMode(.inline)
+        .onDisappear {
+            // Stop audio when leaving the view
+            if viewModel.isCompletePlaying || viewModel.isPlayingCompleteVersion {
+                print("CompleteChalisaView disappeared - stopping audio")
+                viewModel.stopAudio(for: .completeView)
             }
         }
-        
-        return attributed
-    }
-    
-    // Add computed property for simple translation
-    private var currentSimpleTranslation: String {
-        switch viewModel.currentSection {
-        case .openingDoha:
-            return viewModel.openingDoha[viewModel.currentDohaIndex].explanation // Assuming this is simple translation
-        case .chaupai:
-            return viewModel.verses[viewModel.currentChalisaVerseIndex].simpleTranslation
-        case .closingDoha:
-            return viewModel.closingDoha.explanation // Assuming this is simple translation
+        .onAppear {
+            // Track screen view
+            print("CompleteChalisaView appeared")
+            
+            // Reset any intentional stopping state
+            viewModel.resetIntentionalStoppingState()
+            
+            // Set the preventAutoStop flag to true to prevent other views from stopping our audio
+            viewModel.preventAutoStop = true
+            
+            // Track screen view
+            AnalyticsService.shared.trackScreen("CompleteChalisaView")
         }
     }
 }
@@ -292,5 +262,20 @@ struct CompleteChalisaView: View {
     NavigationView {
         CompleteChalisaView()
             .environmentObject(VersesViewModel())
+    }
+}
+
+struct SafariView: UIViewControllerRepresentable {
+    let url: URL
+    
+    func makeUIViewController(context: UIViewControllerRepresentableContext<SafariView>) -> SFSafariViewController {
+        let safariViewController = SFSafariViewController(url: url)
+        safariViewController.preferredControlTintColor = UIColor.orange
+        safariViewController.preferredBarTintColor = UIColor.systemBackground
+        return safariViewController
+    }
+    
+    func updateUIViewController(_ uiViewController: SFSafariViewController, context: UIViewControllerRepresentableContext<SafariView>) {
+        // No update needed
     }
 } 

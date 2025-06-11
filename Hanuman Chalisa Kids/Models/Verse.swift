@@ -1,16 +1,36 @@
 import Foundation
 
+/// Represents a verse from the Hanuman Chalisa
+///
+/// Each verse contains the original text in Hindi, translations,
+/// explanations, and tracking for user progress.
 struct Verse: Identifiable, Codable, Hashable {
+    /// Unique identifier for the verse
     let id = UUID()
+    
+    /// The verse number (1-40) or special values for dohas:
+    /// -1, -2 for opening dohas, -3 for closing doha
     let number: Int
+    
+    /// The original verse text in Hindi
     let text: String
-    let meaning: String  // Detailed meaning
-    let simpleTranslation: String  // Simple English translation
-    let explanation: String  // Kid-friendly explanation
+    
+    /// Detailed meaning/translation in English
+    let meaning: String
+    
+    /// Simplified English translation for children
+    let simpleTranslation: String
+    
+    /// Kid-friendly explanation of the verse's meaning
+    let explanation: String
+    
+    /// Filename for the verse's audio recording
     let audioFileName: String
     
-    // Make these properties mutable with proper state management
+    /// Whether the user has bookmarked this verse
     var isBookmarked: Bool = false
+    
+    /// Whether the user has completed learning this verse
     var hasCompleted: Bool = false
     
     // Add CodingKeys to handle UUID

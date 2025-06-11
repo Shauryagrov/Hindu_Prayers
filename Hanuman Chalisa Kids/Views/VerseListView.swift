@@ -15,6 +15,18 @@ struct VerseListView: View {
                 currentScrollProxy: $currentScrollProxy
             )
         }
+        .onAppear {
+            // Don't reset navigation path on every appear
+            // Only reset if coming from a specific source
+            // This prevents multiple navigation updates
+        }
+        .onChange(of: navigationPath) { oldPath, newPath in
+            // Avoid multiple navigation updates in the same frame
+            if !oldPath.isEmpty && newPath.isEmpty {
+                // We've just reset the path, no need for additional actions
+                return
+            }
+        }
     }
 }
 
@@ -30,6 +42,12 @@ private struct MainContent: View {
                 showingVerseJumper: $showingVerseJumper
             )
             
+            Text("Tap on any verse to learn more")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+                .padding(.top, 8)
+                .padding(.bottom, 4)
+            
             VersesList(
                 viewModel: viewModel,
                 navigationPath: $navigationPath,
@@ -43,6 +61,7 @@ private struct MainContent: View {
 
 private struct TopNavigationButtons: View {
     @Binding var showingVerseJumper: Bool
+    @State private var isNavigating = false
     
     var body: some View {
         HStack {
@@ -51,14 +70,25 @@ private struct TopNavigationButtons: View {
                     .foregroundColor(.orange)
                     .font(.title3)
             }
+            .disabled(isNavigating) // Prevent multiple navigation actions
             
             Spacer()
             
-            Button(action: { showingVerseJumper = true }) {
-                Label("Jump to Verse", systemImage: "list.number.circle.fill")
+            Button(action: {
+                guard !isNavigating else { return }
+                isNavigating = true
+                
+                // Add a slight delay to prevent multiple actions
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    showingVerseJumper = true
+                    isNavigating = false
+                }
+            }) {
+                Label("Jump to Verse", systemImage: "list.number")
                     .foregroundColor(.orange)
                     .font(.title3)
             }
+            .disabled(isNavigating)
         }
         .padding(.horizontal)
         .padding(.vertical, 8)
@@ -132,54 +162,164 @@ struct VerseJumperView: View {
     }
 }
 
-struct VerseRowView: View {
+// 1. Create a separate component for verse rows
+private struct VerseRowView: View {
     let verse: Verse
     
     var body: some View {
         HStack {
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 8) {
                 Text("Verse \(verse.number)")
-                    .font(.title3)
-                    .foregroundColor(.orange)
-                Text(verse.text)
-                    .font(.title3)
-                    .lineLimit(2)
-                    .lineSpacing(6)
+                    .font(.headline)
                     .foregroundColor(.primary)
+                
+                Text(verse.text)
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
             }
+            
             Spacer()
+            
+            // Keep only the blue chevron, remove any gray ones
+            Image(systemName: "chevron.right.circle.fill")
+                .font(.system(size: 24))
+                .foregroundColor(.blue)
+                .padding(.leading, 8)
         }
-        .padding(.vertical, 12)
-        .contentShape(Rectangle())
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color(.systemBackground))
+                .shadow(color: Color.black.opacity(0.1), radius: 3, x: 0, y: 2)
+        )
+        .padding(.horizontal)
+        .padding(.vertical, 4)
     }
 }
 
-// Add DohaRowView similar to VerseRowView
-struct DohaRowView: View {
+// Update the DohaRowView to match the VerseRowView style
+private struct DohaRowView: View {
     let title: String
     let text: String
     
     var body: some View {
         HStack {
-            VStack(alignment: .leading, spacing: 12) {
-                Text(title.replacingOccurrences(of: "दोहा १", with: "Opening Prayer 1")
-                         .replacingOccurrences(of: "दोहा २", with: "Opening Prayer 2")
-                         .replacingOccurrences(of: "दोहा ३", with: "Closing Prayer"))
-                    .font(.title3)
-                    .foregroundColor(.orange)
-                Text(text)
-                    .font(.title3)
-                    .lineLimit(2)
-                    .lineSpacing(6)
+            VStack(alignment: .leading, spacing: 8) {
+                Text(title)
+                    .font(.headline)
                     .foregroundColor(.primary)
+                
+                Text(text)
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
             }
+            
             Spacer()
+            
+            // Make the arrow larger and blue for better visibility
+            Image(systemName: "chevron.right.circle.fill")
+                .font(.system(size: 24)) // Larger size
+                .foregroundColor(.blue) // Blue color for better visibility
+                .padding(.leading, 8)
         }
-        .padding(.vertical, 12)
-        .contentShape(Rectangle())
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color(.systemBackground))
+                .shadow(color: Color.black.opacity(0.1), radius: 3, x: 0, y: 2)
+        )
+        .padding(.horizontal)
+        .padding(.vertical, 4)
     }
 }
 
+// 2. Create a separate component for the main verses section
+private struct MainVersesSection: View {
+    let verses: [Verse]
+    @Binding var navigationPath: NavigationPath
+    
+    var body: some View {
+        Section(header: Text("चौपाई")
+            .font(.title2.bold())
+            .foregroundColor(.orange)
+            .padding(.vertical, 8)
+        ) {
+            ForEach(verses) { verse in
+                ZStack {
+                    VerseRowView(verse: verse)
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            navigationPath.append(verse)
+                        }
+                }
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
+            }
+        }
+    }
+}
+
+// Update the OpeningDohasSection to completely remove default chevrons
+private struct OpeningDohasSection: View {
+    let verses: [Verse]
+    @Binding var navigationPath: NavigationPath
+    
+    var body: some View {
+        Section(header: Text("दोहा")
+            .font(.title2.bold())
+            .foregroundColor(.orange)
+            .padding(.vertical, 8)
+        ) {
+            ForEach(verses) { verse in
+                ZStack {
+                    DohaRowView(
+                        title: verse.number == -1 ? "Opening Prayer 1" : "Opening Prayer 2",
+                        text: verse.text
+                    )
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        navigationPath.append(verse)
+                    }
+                }
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
+            }
+        }
+    }
+}
+
+// Update the ClosingDohaSection to completely remove default chevrons
+private struct ClosingDohaSection: View {
+    let verse: Verse
+    @Binding var navigationPath: NavigationPath
+    
+    var body: some View {
+        Section(header: Text("दोहा")
+            .font(.title2.bold())
+            .foregroundColor(.orange)
+            .padding(.vertical, 8)
+        ) {
+            ZStack {
+                DohaRowView(
+                    title: "Closing Prayer",
+                    text: verse.text
+                )
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    navigationPath.append(verse)
+                }
+            }
+            .listRowSeparator(.hidden)
+            .listRowBackground(Color.clear)
+        }
+    }
+}
+
+// Update the VersesList to use a different list style
 private struct VersesList: View {
     @ObservedObject var viewModel: VersesViewModel
     @Binding var navigationPath: NavigationPath
@@ -189,49 +329,14 @@ private struct VersesList: View {
     var body: some View {
         ScrollViewReader { proxy in
             List {
-                // Opening Dohas section
-                Section(header: Text("दोहा")
-                    .font(.title2.bold())
-                    .foregroundColor(.orange)
-                    .padding(.vertical, 8)
-                ) {
-                    ForEach(viewModel.sections[0].verses) { verse in
-                        NavigationLink(value: verse) {
-                            DohaRowView(
-                                title: verse.number == -1 ? "Opening Prayer 1" : "Opening Prayer 2",
-                                text: verse.text
-                            )
-                        }
-                    }
-                }
+                // Opening Dohas section - pass navigationPath
+                OpeningDohasSection(verses: viewModel.sections[0].verses, navigationPath: $navigationPath)
                 
-                // Main Verses section
-                Section(header: Text("चौपाई")
-                    .font(.title2.bold())
-                    .foregroundColor(.orange)
-                    .padding(.vertical, 8)
-                ) {
-                    ForEach(viewModel.verses) { verse in
-                        NavigationLink(value: verse) {
-                            VerseRowView(verse: verse)
-                        }
-                        .id(verse.number)
-                    }
-                }
+                // Main Verses section - pass navigationPath
+                MainVersesSection(verses: viewModel.verses, navigationPath: $navigationPath)
                 
-                // Closing Doha section
-                Section(header: Text("दोहा")
-                    .font(.title2.bold())
-                    .foregroundColor(.orange)
-                    .padding(.vertical, 8)
-                ) {
-                    NavigationLink(value: viewModel.sections[2].verses[0]) {
-                        DohaRowView(
-                            title: "Closing Prayer",
-                            text: viewModel.sections[2].verses[0].text
-                        )
-                    }
-                }
+                // Closing Doha section - pass navigationPath
+                ClosingDohaSection(verse: viewModel.sections[2].verses[0], navigationPath: $navigationPath)
                 
                 // Bottom spacing
                 Color.clear
@@ -239,6 +344,7 @@ private struct VersesList: View {
                     .listRowBackground(Color.clear)
             }
             .listStyle(PlainListStyle())
+            .environment(\.defaultMinListRowHeight, 0)
             .onAppear {
                 currentScrollProxy = proxy
             }
@@ -247,22 +353,13 @@ private struct VersesList: View {
             VerseDetailView(navigationPath: $navigationPath, verse: verse)
                 .onAppear {
                     if viewModel.isPlaying {
-                        viewModel.stopAudio {
-                            print("Audio stopped, showing verse detail")
-                        }
+                        viewModel.stopAudio()
                     }
                 }
         }
         .navigationDestination(for: String.self) { value in
             if value == "complete" {
                 CompleteChalisaView()
-                    .onAppear {
-                        if viewModel.isPlaying {
-                            viewModel.stopAudio {
-                                print("Audio stopped, showing complete chalisa")
-                            }
-                        }
-                    }
             }
         }
         .sheet(isPresented: $showingVerseJumper) {

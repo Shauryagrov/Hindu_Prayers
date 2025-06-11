@@ -11,32 +11,91 @@ struct ContentView: View {
     @State private var showWelcome = true
     @State private var selectedTab = 0
     @EnvironmentObject var viewModel: VersesViewModel
+    @State private var isTransitioning = false
     
     var body: some View {
         Group {
             if showWelcome {
                 WelcomeView(showMainApp: { tab in
-                    print("ContentView: Transitioning to tab \(tab)")
+                    // Prevent multiple transitions
+                    guard !isTransitioning else { return }
+                    isTransitioning = true
+                    
                     selectedTab = tab
                     withAnimation(.easeInOut(duration: 0.5)) {
                         showWelcome = false
                     }
+                    
+                    // Reset the transition flag after animation completes
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                        isTransitioning = false
+                    }
                 })
             } else {
-                MainTabView(
-                    selectedTab: selectedTab,
-                    showWelcome: {
-                        withAnimation(.easeInOut(duration: 0.5)) {
-                            showWelcome = true
-                        }
+                // Embed the tab view directly in ContentView
+                TabView(selection: $selectedTab) {
+                    // First tab - Verses
+                    NavigationStack {
+                        // Try VerseListView instead of VersesListView
+                        VerseListView()
                     }
-                )
+                    .tabItem {
+                        Label("Verses", systemImage: "book.fill")
+                    }
+                    .tag(0)
+                    
+                    // Second tab - Quiz
+                    NavigationStack {
+                        QuizView()
+                    }
+                    .tabItem {
+                        Label("Quiz", systemImage: "questionmark.circle.fill")
+                    }
+                    .tag(1)
+                    
+                    // Third tab - Complete Chalisa
+                    NavigationStack {
+                        CompleteChalisaView()
+                    }
+                    .tabItem {
+                        Label("Complete", systemImage: "text.book.closed.fill")
+                    }
+                    .tag(2)
+                    
+                    // Fourth tab - Settings
+                    NavigationStack {
+                        SettingsView(showWelcome: {
+                            // Prevent multiple transitions
+                            guard !isTransitioning else { return }
+                            isTransitioning = true
+                            
+                            withAnimation(.easeInOut(duration: 0.5)) {
+                                showWelcome = true
+                            }
+                            
+                            // Reset the transition flag after animation completes
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                                isTransitioning = false
+                            }
+                        })
+                    }
+                    .tabItem {
+                        Label("Settings", systemImage: "gearshape.fill")
+                    }
+                    .tag(3)
+                }
+                .onChange(of: selectedTab) { oldValue, newValue in
+                    print("Tab changed from \(oldValue) to \(newValue)")
+                    
+                    // Always stop all audio when switching tabs
+                    viewModel.stopAllAudio()
+                    
+                    // Store the selected tab
+                    UserDefaults.standard.set(newValue, forKey: "selectedTab")
+                }
             }
         }
         .animation(.easeInOut(duration: 0.5), value: showWelcome)
-        .onChange(of: showWelcome) { _, newValue in
-            print("ContentView: showWelcome changed to \(newValue)")
-        }
     }
 }
 
