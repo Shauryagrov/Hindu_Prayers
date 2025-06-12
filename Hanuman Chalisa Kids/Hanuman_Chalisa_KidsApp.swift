@@ -20,7 +20,7 @@ struct Hanuman_Chalisa_KidsApp: App {
         // Configure AVAudioSession at app launch
         do {
             let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.ambient, mode: .default)
+            try session.setCategory(.playback, mode: .default)
             try session.setActive(true)
             print("Initial audio session configured successfully")
         } catch {
