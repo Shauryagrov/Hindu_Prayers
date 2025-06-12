@@ -364,8 +364,8 @@ private struct VersesList: View {
         }
         .sheet(isPresented: $showingVerseJumper) {
             VerseJumperView { verseNumber in
-                withAnimation {
-                    currentScrollProxy?.scrollTo(verseNumber, anchor: .top)
+                if let verse = viewModel.verses.first(where: { $0.number == verseNumber }) {
+                    navigationPath.append(verse)
                 }
                 showingVerseJumper = false
             }
