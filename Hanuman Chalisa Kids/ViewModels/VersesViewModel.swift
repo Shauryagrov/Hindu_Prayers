@@ -482,7 +482,7 @@ class VersesViewModel: NSObject, ObservableObject {
         // Set up the utterance for English text
         let utterance = AVSpeechUtterance(string: verse.explanation)
         utterance.voice = getVoice(forLanguage: "en-US")
-        utterance.rate = 0.5
+        utterance.rate = speechRate  // Use the speechRate property
         utterance.pitchMultiplier = 1.0
         
         // Get the appropriate synthesizer based on source
@@ -1489,7 +1489,7 @@ class VersesViewModel: NSObject, ObservableObject {
         // Create utterance for Hindi text
         let utterance = AVSpeechUtterance(string: verse.text)
         utterance.voice = getVoice(forLanguage: "hi-IN")
-        utterance.rate = 0.5
+        utterance.rate = speechRate  // Use the speechRate property
         
         // Get the appropriate synthesizer
         let synth = getSynthesizer(for: source)

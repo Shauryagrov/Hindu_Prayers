@@ -244,15 +244,12 @@ struct QuizView: View {
     
     // Options component
     private var optionsView: some View {
-        ScrollView {
-            VStack(spacing: 12) {
-                ForEach(0..<questions[currentQuestionIndex].options.count, id: \.self) { index in
-                    optionButton(at: index)
-                }
+        VStack(spacing: 8) {
+            ForEach(0..<questions[currentQuestionIndex].options.count, id: \.self) { index in
+                optionButton(at: index)
             }
-            .padding(.horizontal)
         }
-        .frame(maxHeight: 300) // Set a maximum height for the scroll view
+        .padding(.horizontal)
     }
     
     // Option button component
@@ -262,35 +259,65 @@ struct QuizView: View {
         }) {
             HStack(alignment: .top) {
                 Text(questions[currentQuestionIndex].options[index])
-                    .font(.body)
+                    .font(.subheadline)
                     .multilineTextAlignment(.leading)
-                    .lineLimit(nil) // Allow multiple lines
-                    .fixedSize(horizontal: false, vertical: true) // Allow vertical expansion
-                    .padding()
+                    .lineLimit(nil)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.vertical, 8)
+                    .padding(.horizontal, 12)
                 
                 Spacer()
                 
-                if showingResult && selectedOption == index {
-                    Image(systemName: isCorrect ? "checkmark.circle.fill" : "xmark.circle.fill")
-                        .foregroundColor(isCorrect ? .green : .red)
-                        .padding(.trailing, 16)
-                        .padding(.top, 16)
+                if showingResult {
+                    if index == questions[currentQuestionIndex].correctAnswer {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundColor(.green)
+                            .padding(.trailing, 12)
+                            .padding(.top, 8)
+                    } else if selectedOption == index {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundColor(.red)
+                            .padding(.trailing, 12)
+                            .padding(.top, 8)
+                    }
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
-                RoundedRectangle(cornerRadius: 10)
-                    .fill(selectedOption == index ? 
-                          Color.orange.opacity(0.2) : 
-                          Color(.systemGray6))
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(backgroundColor(for: index))
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 10)
-                    .stroke(selectedOption == index ? Color.orange : Color.clear, lineWidth: 2)
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(borderColor(for: index), lineWidth: 1)
             )
         }
-        .buttonStyle(PlainButtonStyle()) // Use plain style for better text wrapping
+        .buttonStyle(PlainButtonStyle())
         .disabled(showingResult)
+    }
+    
+    // Helper function to determine background color
+    private func backgroundColor(for index: Int) -> Color {
+        if showingResult {
+            if index == questions[currentQuestionIndex].correctAnswer {
+                return .green.opacity(0.2)
+            } else if selectedOption == index {
+                return .red.opacity(0.2)
+            }
+        }
+        return selectedOption == index ? Color.orange.opacity(0.2) : Color(.systemGray6)
+    }
+    
+    // Helper function to determine border color
+    private func borderColor(for index: Int) -> Color {
+        if showingResult {
+            if index == questions[currentQuestionIndex].correctAnswer {
+                return .green
+            } else if selectedOption == index {
+                return .red
+            }
+        }
+        return selectedOption == index ? Color.orange : Color.clear
     }
     
     // Next button component
