@@ -407,19 +407,28 @@ class VersesViewModel: NSObject, ObservableObject {
         let session = AVAudioSession.sharedInstance()
         
         do {
-            // First, deactivate any existing session
-            try session.setActive(false, options: .notifyOthersOnDeactivation)
-            
-            // Wait a moment for the deactivation to complete
-            Thread.sleep(forTimeInterval: 0.1)
-            
-            // Now set the category and activate
-            try session.setCategory(.playback, mode: .spokenAudio)
-            try session.setActive(true)
-            print("Audio session set up successfully")
+            // Configure audio session to play even in silent mode and Do Not Disturb
+            // Using .playback category ensures audio plays regardless of silent switch
+            // Using .spokenAudio mode optimizes for speech synthesis
+            // Using .defaultToSpeaker ensures audio plays through speaker
+            try session.setCategory(
+                .playback,
+                mode: .spokenAudio,
+                options: [.defaultToSpeaker, .duckOthers]
+            )
+            try session.setActive(true, options: .notifyOthersOnDeactivation)
+            print("Audio session set up successfully - will play in silent mode")
         } catch {
             print("Failed to set up audio session: \(error)")
-            throw error
+            // Try simpler fallback
+            do {
+                try session.setCategory(.playback, mode: .spokenAudio)
+                try session.setActive(true)
+                print("Audio session set up with fallback configuration")
+            } catch {
+                print("Failed to set up fallback audio session: \(error)")
+                throw error
+            }
         }
     }
     
@@ -476,12 +485,15 @@ class VersesViewModel: NSObject, ObservableObject {
     private func playEnglishPart(for verse: Verse, using source: PlaybackSource = .none) {
         print("Playing English part for verse: \(verse.number) using source: \(source)")
         
+        // Ensure audio session is active before playback
+        ensureAudioSessionIsActive()
+        
         // Set the playback state to explanation
         currentPlaybackState = .explanation
         
-        // Set up the utterance for English text
+        // Set up the utterance for English text - use Indian English for authentic accent
         let utterance = AVSpeechUtterance(string: verse.explanation)
-        utterance.voice = getVoice(forLanguage: "en-US")
+        utterance.voice = getVoice(forLanguage: "en-IN")  // Use Indian English instead of US English
         utterance.rate = speechRate  // Use the speechRate property
         utterance.pitchMultiplier = 1.0
         
@@ -1161,7 +1173,7 @@ class VersesViewModel: NSObject, ObservableObject {
         // Stop ALL audio playback from other sources first
         stopAudio(for: .quiz)
         stopAudio(for: .verseDetail)
-        stopAudio(for: .none)
+        stopAudio(for: VersesViewModel.PlaybackSource.none)
         
         // Then stop any existing complete chalisa playback
         stopAudio(for: .completeView)
@@ -1264,21 +1276,88 @@ class VersesViewModel: NSObject, ObservableObject {
         objectWillChange.send()
     }
     
-    // Update getVoice function
+    // Update getVoice function to prioritize authentic Indian voices
+    // Note: If Indian voices are not available, users can download them from:
+    // Settings > Accessibility > Spoken Content > Voices > [Language] > [Voice Name]
+    // For Hindi: Look for "Lekha" under Hindi (India)
+    // For English: Look for "Veena", "Tara", "Isha", "Rishi", "Neel", or "Kajal" under English (India)
     private func getVoice(forLanguage languageCode: String) -> AVSpeechSynthesisVoice? {
-        // Try to get the specific language voice
-        if let voice = AVSpeechSynthesisVoice(language: languageCode) {
-            return voice
+        let allVoices = AVSpeechSynthesisVoice.speechVoices()
+        
+        if languageCode == "hi-IN" {
+            // For Hindi: Prioritize Indian Hindi voices
+            let preferredHindiVoiceIds = [
+                "com.apple.voice.compact.hi-IN.Lekha",
+                "com.apple.ttsbundle.Lekha-compact",
+                "com.apple.voice.premium.hi-IN.Lekha"
+            ]
+            
+            // Try preferred Hindi voices first
+            for voiceId in preferredHindiVoiceIds {
+                if let voice = allVoices.first(where: { $0.identifier == voiceId }) {
+                    print("Using Hindi voice: \(voice.name) (\(voice.identifier))")
+                    return voice
+                }
+            }
+            
+            // Try any hi-IN voice
+            if let hindiVoice = allVoices.first(where: { $0.language == "hi-IN" }) {
+                print("Using available Hindi voice: \(hindiVoice.name)")
+                return hindiVoice
+            }
+            
+            // Fallback to any Hindi voice
+            if let hindiVoice = allVoices.first(where: { $0.language.starts(with: "hi") }) {
+                print("Using fallback Hindi voice: \(hindiVoice.name)")
+                return hindiVoice
+            }
+        } else if languageCode == "en-IN" || languageCode == "en-US" {
+            // For English: Prioritize Indian English voices for authentic accent
+            let preferredIndianEnglishVoiceNames = [
+                "Veena",      // Female Indian English voice
+                "Tara",       // Female Indian English voice
+                "Isha",       // Female Indian English voice
+                "Rishi",      // Male Indian English voice
+                "Neel",       // Male Indian English voice
+                "Kajal"       // Female Indian English voice
+            ]
+            
+            // Try to find Indian English voices first
+            for voiceName in preferredIndianEnglishVoiceNames {
+                if let indianVoice = allVoices.first(where: { 
+                    $0.language == "en-IN" && 
+                    ($0.name.contains(voiceName) || $0.identifier.contains(voiceName))
+                }) {
+                    print("Using Indian English voice: \(indianVoice.name) (\(indianVoice.identifier))")
+                    return indianVoice
+                }
+            }
+            
+            // Try any en-IN voice
+            if let indianVoice = allVoices.first(where: { $0.language == "en-IN" }) {
+                print("Using available Indian English voice: \(indianVoice.name)")
+                return indianVoice
+            }
+            
+            // Fallback to US English (but prefer female voices for better pronunciation)
+            if let usVoice = allVoices.first(where: { 
+                $0.language == "en-US" && 
+                ($0.name.contains("Samantha") || $0.name.contains("Karen") || $0.name.contains("Moira"))
+            }) {
+                print("Using fallback US English voice: \(usVoice.name)")
+                return usVoice
+            }
+            
+            // Last resort: any English voice
+            if let anyEnglish = allVoices.first(where: { $0.language.starts(with: "en") }) {
+                print("Using any available English voice: \(anyEnglish.name)")
+                return anyEnglish
+            }
         }
         
-        // Fallback to any available voice for that language
-        let voices = AVSpeechSynthesisVoice.speechVoices()
-        if let voice = voices.first(where: { $0.language.starts(with: languageCode.prefix(2)) }) {
-            return voice
-        }
-        
-        // Final fallback to default voice
-        return AVSpeechSynthesisVoice(language: "en-US")
+        // Final fallback
+        print("Using default system voice")
+        return AVSpeechSynthesisVoice(language: languageCode) ?? AVSpeechSynthesisVoice(language: "en-US")
     }
     
     func markVerseAsCompleted(_ verse: Verse) {
@@ -1439,7 +1518,7 @@ class VersesViewModel: NSObject, ObservableObject {
         // Stop ALL audio playback from other sources first
         stopAudio(for: .completeView)
         stopAudio(for: .verseDetail)
-        stopAudio(for: .none)
+        stopAudio(for: VersesViewModel.PlaybackSource.none)
         
         // Then stop any existing quiz playback
         stopAudio(for: .quiz)
@@ -1483,6 +1562,9 @@ class VersesViewModel: NSObject, ObservableObject {
     private func playHindiPart(for verse: Verse, using source: PlaybackSource = .none) {
         print("Playing Hindi part for verse: \(verse.number) using source: \(source)")
         
+        // Ensure audio session is active before playback
+        ensureAudioSessionIsActive()
+        
         // Set the playback state to main text
         currentPlaybackState = .mainText
         
@@ -1496,6 +1578,33 @@ class VersesViewModel: NSObject, ObservableObject {
         
         // Start speaking
         synth.speak(utterance)
+    }
+    
+    // Helper function to ensure audio session is active before playback
+    private func ensureAudioSessionIsActive() {
+        let session = AVAudioSession.sharedInstance()
+        
+        // Check if session is active, if not, activate it
+        if !session.isOtherAudioPlaying {
+            do {
+                try session.setCategory(
+                    .playback,
+                    mode: .spokenAudio,
+                    options: [.defaultToSpeaker, .duckOthers]
+                )
+                try session.setActive(true)
+                print("Audio session activated for playback")
+            } catch {
+                print("Failed to activate audio session: \(error)")
+                // Try simpler activation
+                do {
+                    try session.setCategory(.playback, mode: .spokenAudio)
+                    try session.setActive(true)
+                } catch {
+                    print("Failed to activate audio session with fallback: \(error)")
+                }
+            }
+        }
     }
     
     // Update the playCurrentSection method to only play Hindi for complete chalisa
@@ -1755,9 +1864,9 @@ extension VersesViewModel: AVSpeechSynthesizerDelegate {
     }
     
     // Update the speechSynthesizer delegate method to properly handle transitions
-    func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
+    nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
         // Run on main thread to update UI
-        DispatchQueue.main.async {
+        Task { @MainActor in
             print("Speech finished. synthesizer: \(synthesizer), playingHindiOnly: \(self.playingHindiOnly), currentPlaybackState: \(self.currentPlaybackState)")
             
             // Clear highlighting

@@ -18,13 +18,29 @@ struct Hanuman_Chalisa_KidsApp: App {
         setupAppearance()
         
         // Configure AVAudioSession at app launch
+        // Using .playback category ensures audio plays even when device is in silent mode
+        // Using .spokenAudio mode optimizes for speech synthesis
+        // Using .defaultToSpeaker ensures audio plays through speaker even if headphones aren't connected
         do {
             let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.playback, mode: .default)
-            try session.setActive(true)
-            print("Initial audio session configured successfully")
+            try session.setCategory(
+                .playback,
+                mode: .spokenAudio,
+                options: [.defaultToSpeaker, .duckOthers]
+            )
+            try session.setActive(true, options: .notifyOthersOnDeactivation)
+            print("Initial audio session configured successfully - will play in silent mode")
         } catch {
             print("Failed to configure initial audio session: \(error)")
+            // Try fallback configuration
+            do {
+                let session = AVAudioSession.sharedInstance()
+                try session.setCategory(.playback, mode: .spokenAudio)
+                try session.setActive(true)
+                print("Fallback audio session configured")
+            } catch {
+                print("Failed to configure fallback audio session: \(error)")
+            }
         }
         
         // Register for audio session interruptions

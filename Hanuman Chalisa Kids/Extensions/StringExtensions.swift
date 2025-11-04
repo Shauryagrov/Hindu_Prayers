@@ -21,7 +21,7 @@ extension String {
         
         var attributed = AttributedString(self)
         
-        guard let word = word, let range = range else {
+        guard word != nil, let range = range else {
             return attributed
         }
         

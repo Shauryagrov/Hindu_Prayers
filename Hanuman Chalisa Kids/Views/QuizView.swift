@@ -53,7 +53,7 @@ struct QuizView: View {
                             presentationMode.wrappedValue.dismiss()
                             
                             // As a fallback, try to navigate back to the first tab
-                            if let tabSelection = UserDefaults.standard.object(forKey: "selectedTab") as? Int {
+                            if UserDefaults.standard.object(forKey: "selectedTab") as? Int != nil {
                                 UserDefaults.standard.set(0, forKey: "selectedTab")
                             }
                         }
