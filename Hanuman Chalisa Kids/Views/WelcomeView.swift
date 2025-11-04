@@ -16,27 +16,31 @@ struct WelcomeView: View {
                         .font(.title2)
                         .foregroundColor(.orange)
                     
-                    Text("हनुमान चालीसा")
+                    Text("Hindu Prayers")
                         .font(.system(size: 36, weight: .bold))
                         .foregroundColor(.orange)
+                    
+                    Text("हिंदू प्रार्थनाएं")
+                        .font(.title3)
+                        .foregroundColor(.orange.opacity(0.8))
                 }
                 .padding(.top, 60)
                 
-                // Hanuman image
-                Image("hanuman_icon")
+                // Icon/Image
+                Image(systemName: "books.vertical.fill")
                     .resizable()
                     .scaledToFit()
-                    .frame(width: 180, height: 180)
-                    .cornerRadius(20)
+                    .frame(width: 120, height: 120)
+                    .foregroundColor(.orange)
                     .padding(.vertical, 20)
                 
-                // Start Learning button
+                // Primary action button - Browse Library
                 Button(action: {
-                    // Navigate to Verses tab (index 0)
+                    // Navigate to Library tab (index 0 - now first tab)
                     showMainApp(0)
                 }) {
                     HStack {
-                        Text("Start Learning")
+                        Text("Browse Library")
                             .font(.headline)
                             .foregroundColor(.white)
                         
@@ -50,52 +54,70 @@ struct WelcomeView: View {
                     .cornerRadius(30)
                     .padding(.horizontal, 40)
                 }
+                .padding(.bottom, 10)
+                
+                // Secondary button - Quick start with Hanuman Chalisa
+                Button(action: {
+                    // Navigate to Verses tab (index 1 - now second tab)
+                    showMainApp(1)
+                }) {
+                    HStack {
+                        Text("Start with Hanuman Chalisa")
+                            .font(.subheadline)
+                            .foregroundColor(.orange)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(Color.orange.opacity(0.1))
+                    .cornerRadius(25)
+                    .padding(.horizontal, 40)
+                }
                 .padding(.bottom, 20)
                 
                 // Grid of options
                 LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 20) {
-                    // Learn - Complete Chalisa with meanings
+                    // Browse - Library of prayers
+                    GridButton(
+                        title: "Browse",
+                        subtitle: "Explore all prayers",
+                        icon: "books.vertical.fill",
+                        iconColor: .orange
+                    ) {
+                        // Navigate to Library tab (index 0 - now first tab)
+                        showMainApp(0)
+                    }
+                    
+                    // Learn - Verses with meanings
                     GridButton(
                         title: "Learn",
-                        subtitle: "Complete Chalisa with meanings",
+                        subtitle: "Prayers with meanings",
                         icon: "book.fill",
                         iconColor: .orange
                     ) {
-                        // Navigate to Verses tab (index 0)
-                        showMainApp(0)
+                        // Navigate to Verses tab (index 1 - now second tab)
+                        showMainApp(1)
                     }
                     
-                    // Listen - Complete Chalisa with audio
+                    // Listen - Audio playback
                     GridButton(
                         title: "Listen",
-                        subtitle: "Complete Chalisa with audio",
+                        subtitle: "Complete audio playback",
                         icon: "speaker.wave.2.fill",
                         iconColor: .orange
                     ) {
-                        // Navigate to Complete Chalisa tab (index 2)
-                        showMainApp(2)
+                        // Navigate to Complete tab (index 3 - now fourth tab)
+                        showMainApp(3)
                     }
                     
-                    // Understand - Kid-friendly explanations
-                    GridButton(
-                        title: "Understand",
-                        subtitle: "Kid-friendly explanations",
-                        icon: "text.book.closed.fill",
-                        iconColor: .orange
-                    ) {
-                        // Navigate to Verses tab (index 0)
-                        showMainApp(0)
-                    }
-                    
-                    // Practice - Fun interactive quizzes
+                    // Practice - Interactive quizzes
                     GridButton(
                         title: "Practice",
                         subtitle: "Fun interactive quizzes",
                         icon: "gamecontroller.fill",
                         iconColor: .orange
                     ) {
-                        // Navigate to Quiz tab (index 1)
-                        showMainApp(1)
+                        // Navigate to Quiz tab (index 2 - now third tab)
+                        showMainApp(2)
                     }
                 }
                 .padding(.horizontal, 20)

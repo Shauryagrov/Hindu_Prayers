@@ -34,7 +34,16 @@ struct ContentView: View {
             } else {
                 // Embed the tab view directly in ContentView
                 TabView(selection: $selectedTab) {
-                    // First tab - Verses
+                    // First tab - Library (Main entry point - shows all prayers)
+                    NavigationStack {
+                        PrayerLibraryView()
+                    }
+                    .tabItem {
+                        Label("Library", systemImage: "books.vertical.fill")
+                    }
+                    .tag(0)
+                    
+                    // Second tab - Verses (Hanuman Chalisa verses)
                     NavigationStack {
                         // Try VerseListView instead of VersesListView
                         VerseListView()
@@ -42,27 +51,27 @@ struct ContentView: View {
                     .tabItem {
                         Label("Verses", systemImage: "book.fill")
                     }
-                    .tag(0)
+                    .tag(1)
                     
-                    // Second tab - Quiz
+                    // Third tab - Quiz (Hanuman Chalisa quiz)
                     NavigationStack {
                         QuizView()
                     }
                     .tabItem {
                         Label("Quiz", systemImage: "questionmark.circle.fill")
                     }
-                    .tag(1)
+                    .tag(2)
                     
-                    // Third tab - Complete Chalisa
+                    // Fourth tab - Complete (Complete Hanuman Chalisa playback)
                     NavigationStack {
                         CompleteChalisaView()
                     }
                     .tabItem {
                         Label("Complete", systemImage: "text.book.closed.fill")
                     }
-                    .tag(2)
+                    .tag(3)
                     
-                    // Fourth tab - Settings
+                    // Fifth tab - Settings
                     NavigationStack {
                         SettingsView(showWelcome: {
                             // Prevent multiple transitions
@@ -82,7 +91,7 @@ struct ContentView: View {
                     .tabItem {
                         Label("Settings", systemImage: "gearshape.fill")
                     }
-                    .tag(3)
+                    .tag(4)
                 }
                 .onChange(of: selectedTab) { oldValue, newValue in
                     print("Tab changed from \(oldValue) to \(newValue)")
