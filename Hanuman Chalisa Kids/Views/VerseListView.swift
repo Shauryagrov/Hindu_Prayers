@@ -30,6 +30,46 @@ struct VerseListView: View {
     }
 }
 
+// Version for use as navigation destination - receives parent's navigationPath
+struct VerseListViewContent: View {
+    @EnvironmentObject var viewModel: VersesViewModel
+    @Binding var navigationPath: NavigationPath
+    @State private var showingVerseJumper = false
+    @State private var currentScrollProxy: ScrollViewProxy?
+    
+    var body: some View {
+        MainContent(
+            viewModel: viewModel,
+            showingVerseJumper: $showingVerseJumper,
+            navigationPath: $navigationPath,
+            currentScrollProxy: $currentScrollProxy
+        )
+        .navigationDestination(for: Verse.self) { verse in
+            VerseDetailView(navigationPath: $navigationPath, verse: verse)
+                .onAppear {
+                    if viewModel.isPlaying {
+                        viewModel.stopAudio()
+                    }
+                }
+        }
+        .navigationDestination(for: String.self) { value in
+            if value == "complete" {
+                CompleteChalisaView()
+                    .environmentObject(viewModel)
+            }
+        }
+        .sheet(isPresented: $showingVerseJumper) {
+            VerseJumperView { verseNumber in
+                if let verse = viewModel.verses.first(where: { $0.number == verseNumber }) {
+                    navigationPath.append(verse)
+                }
+                showingVerseJumper = false
+            }
+            .presentationDetents([.height(400)])
+        }
+    }
+}
+
 private struct MainContent: View {
     @ObservedObject var viewModel: VersesViewModel
     @Binding var showingVerseJumper: Bool
@@ -56,12 +96,26 @@ private struct MainContent: View {
             )
         }
         .navigationTitle("Hanuman Chalisa")
+        .navigationBarBackButtonHidden(true)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                Button(action: {
+                    viewModel.stopAudio()
+                    navigationPath.removeLast()
+                }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "chevron.backward")
+                        Text("Back")
+                    }
+                    .foregroundColor(.orange)
+                }
+            }
+        }
     }
 }
 
 private struct TopNavigationButtons: View {
     @Binding var showingVerseJumper: Bool
-    @State private var isNavigating = false
     
     var body: some View {
         HStack {
@@ -70,25 +124,8 @@ private struct TopNavigationButtons: View {
                     .foregroundColor(.orange)
                     .font(.title3)
             }
-            .disabled(isNavigating) // Prevent multiple navigation actions
             
             Spacer()
-            
-            Button(action: {
-                guard !isNavigating else { return }
-                isNavigating = true
-                
-                // Add a slight delay to prevent multiple actions
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                    showingVerseJumper = true
-                    isNavigating = false
-                }
-            }) {
-                Label("Jump to Verse", systemImage: "list.number")
-                    .foregroundColor(.orange)
-                    .font(.title3)
-            }
-            .disabled(isNavigating)
         }
         .padding(.horizontal)
         .padding(.vertical, 8)
@@ -167,27 +204,18 @@ private struct VerseRowView: View {
     let verse: Verse
     
     var body: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Verse \(verse.number)")
-                    .font(.headline)
-                    .foregroundColor(.primary)
-                
-                Text(verse.text)
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                    .lineLimit(2)
-                    .multilineTextAlignment(.leading)
-            }
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Verse \(verse.number)")
+                .font(.headline)
+                .foregroundColor(.primary)
             
-            Spacer()
-            
-            // Keep only the blue chevron, remove any gray ones
-            Image(systemName: "chevron.right.circle.fill")
-                .font(.system(size: 24))
-                .foregroundColor(.blue)
-                .padding(.leading, 8)
+            Text(verse.text)
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+                .lineLimit(2)
+                .multilineTextAlignment(.leading)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
         .background(
             RoundedRectangle(cornerRadius: 12)
@@ -205,27 +233,18 @@ private struct DohaRowView: View {
     let text: String
     
     var body: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 8) {
-                Text(title)
-                    .font(.headline)
-                    .foregroundColor(.primary)
-                
-                Text(text)
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                    .lineLimit(2)
-                    .multilineTextAlignment(.leading)
-            }
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title)
+                .font(.headline)
+                .foregroundColor(.primary)
             
-            Spacer()
-            
-            // Make the arrow larger and blue for better visibility
-            Image(systemName: "chevron.right.circle.fill")
-                .font(.system(size: 24)) // Larger size
-                .foregroundColor(.blue) // Blue color for better visibility
-                .padding(.leading, 8)
+            Text(text)
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+                .lineLimit(2)
+                .multilineTextAlignment(.leading)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
         .background(
             RoundedRectangle(cornerRadius: 12)
@@ -249,12 +268,8 @@ private struct MainVersesSection: View {
             .padding(.vertical, 8)
         ) {
             ForEach(verses) { verse in
-                ZStack {
+                NavigationLink(value: verse) {
                     VerseRowView(verse: verse)
-                        .contentShape(Rectangle())
-                        .onTapGesture {
-                            navigationPath.append(verse)
-                        }
                 }
                 .listRowSeparator(.hidden)
                 .listRowBackground(Color.clear)
@@ -275,15 +290,11 @@ private struct OpeningDohasSection: View {
             .padding(.vertical, 8)
         ) {
             ForEach(verses) { verse in
-                ZStack {
+                NavigationLink(value: verse) {
                     DohaRowView(
                         title: verse.number == -1 ? "Opening Prayer 1" : "Opening Prayer 2",
                         text: verse.text
                     )
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        navigationPath.append(verse)
-                    }
                 }
                 .listRowSeparator(.hidden)
                 .listRowBackground(Color.clear)
@@ -303,15 +314,11 @@ private struct ClosingDohaSection: View {
             .foregroundColor(.orange)
             .padding(.vertical, 8)
         ) {
-            ZStack {
+            NavigationLink(value: verse) {
                 DohaRowView(
                     title: "Closing Prayer",
                     text: verse.text
                 )
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    navigationPath.append(verse)
-                }
             }
             .listRowSeparator(.hidden)
             .listRowBackground(Color.clear)
@@ -349,25 +356,12 @@ private struct VersesList: View {
                 currentScrollProxy = proxy
             }
         }
-        .navigationDestination(for: Verse.self) { verse in
-            VerseDetailView(navigationPath: $navigationPath, verse: verse)
-                .onAppear {
-                    if viewModel.isPlaying {
-                        viewModel.stopAudio()
-                    }
-                }
-        }
-        .navigationDestination(for: String.self) { value in
-            if value == "complete" {
-                CompleteChalisaView()
-            }
-        }
         .sheet(isPresented: $showingVerseJumper) {
             VerseJumperView { verseNumber in
-                if let verse = viewModel.verses.first(where: { $0.number == verseNumber }) {
-                    navigationPath.append(verse)
-                }
+                // For VerseJumperView, we'll use a different approach since we're nested
+                // The navigation will be handled by the parent NavigationStack
                 showingVerseJumper = false
+                // TODO: Implement programmatic navigation from sheet
             }
             .presentationDetents([.height(400)])
         }

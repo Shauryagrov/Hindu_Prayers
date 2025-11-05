@@ -56,13 +56,13 @@ struct WelcomeView: View {
                 }
                 .padding(.bottom, 10)
                 
-                // Secondary button - Quick start with Hanuman Chalisa
+                // Secondary button - View Bookmarks
                 Button(action: {
-                    // Navigate to Verses tab (index 1 - now second tab)
+                    // Navigate to Bookmarks tab (index 1)
                     showMainApp(1)
                 }) {
                     HStack {
-                        Text("Start with Hanuman Chalisa")
+                        Text("View Bookmarks")
                             .font(.subheadline)
                             .foregroundColor(.orange)
                     }
@@ -83,41 +83,19 @@ struct WelcomeView: View {
                         icon: "books.vertical.fill",
                         iconColor: .orange
                     ) {
-                        // Navigate to Library tab (index 0 - now first tab)
+                        // Navigate to Library tab (index 0)
                         showMainApp(0)
                     }
                     
-                    // Learn - Verses with meanings
+                    // Bookmarks - Saved prayers
                     GridButton(
-                        title: "Learn",
-                        subtitle: "Prayers with meanings",
-                        icon: "book.fill",
+                        title: "Bookmarks",
+                        subtitle: "Your saved prayers",
+                        icon: "bookmark.fill",
                         iconColor: .orange
                     ) {
-                        // Navigate to Verses tab (index 1 - now second tab)
+                        // Navigate to Bookmarks tab (index 1)
                         showMainApp(1)
-                    }
-                    
-                    // Listen - Audio playback
-                    GridButton(
-                        title: "Listen",
-                        subtitle: "Complete audio playback",
-                        icon: "speaker.wave.2.fill",
-                        iconColor: .orange
-                    ) {
-                        // Navigate to Complete tab (index 3 - now fourth tab)
-                        showMainApp(3)
-                    }
-                    
-                    // Practice - Interactive quizzes
-                    GridButton(
-                        title: "Practice",
-                        subtitle: "Fun interactive quizzes",
-                        icon: "gamecontroller.fill",
-                        iconColor: .orange
-                    ) {
-                        // Navigate to Quiz tab (index 2 - now third tab)
-                        showMainApp(2)
                     }
                 }
                 .padding(.horizontal, 20)

@@ -7,9 +7,11 @@ struct PrayerLibraryView: View {
     @State private var searchText = ""
     @State private var selectedCategory: PrayerCategory? = nil
     @State private var selectedType: PrayerType? = nil
+    @State private var navigationPath = NavigationPath()
+    @EnvironmentObject var versesViewModel: VersesViewModel
     
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $navigationPath) {
             VStack(spacing: 0) {
                 // Search and filter bar
                 SearchAndFilterBar(
@@ -29,17 +31,17 @@ struct PrayerLibraryView: View {
                     )
                 }
             }
-            .navigationTitle("Hindu Prayers")
+            .navigationTitle("Library")
             .navigationBarTitleDisplayMode(.large)
             .navigationDestination(for: Prayer.self) { prayer in
                 // Special handling for Hanuman Chalisa - use existing VerseListView
                 if prayer.type == .chalisa && prayer.title == "Hanuman Chalisa" {
-                    VerseListView()
-                        .environmentObject(VersesViewModel())
+                    VerseListViewContent(navigationPath: $navigationPath)
+                        .environmentObject(versesViewModel)
                 } else {
-                    // Generic prayer detail view
-                    PrayerDetailView(prayer: prayer)
-                        .environmentObject(VersesViewModel())
+                    // Generic prayer detail view (handles its own verse navigation)
+                    PrayerDetailView(prayer: prayer, navigationPath: $navigationPath)
+                        .environmentObject(versesViewModel)
                 }
             }
             .onAppear {
@@ -156,8 +158,7 @@ private struct PrayerGridView: View {
                 ForEach(prayers) { prayer in
                     NavigationLink(value: prayer) {
                         PrayerCard(prayer: prayer, libraryViewModel: libraryViewModel)
-                            .contentShape(Rectangle())
-                            .allowsHitTesting(true)
+                            .accessibilityIdentifier("prayer_card_\(prayer.id.uuidString)")
                     }
                     .buttonStyle(PlainButtonStyle())
                 }
@@ -180,68 +181,80 @@ private struct PrayerCard: View {
     }
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            // Header with icon and bookmark
-            HStack {
-                // Icon placeholder (will use actual icons later)
-                Image(systemName: iconForPrayer(prayer))
-                    .font(.title)
+        ZStack(alignment: .topTrailing) {
+            // Main card content - tappable via NavigationLink
+            VStack(alignment: .leading, spacing: 12) {
+                // Header with icon
+                HStack {
+                    // Icon placeholder (will use actual icons later)
+                    Image(systemName: iconForPrayer(prayer))
+                        .font(.title)
+                        .foregroundColor(.orange)
+                        .frame(width: 40, height: 40)
+                        .background(Color.orange.opacity(0.1))
+                        .clipShape(Circle())
+                    
+                    Spacer()
+                }
+                
+                // Title
+                Text(prayer.displayTitle)
+                    .font(.headline)
+                    .foregroundColor(.primary)
+                    .lineLimit(2)
+                    .accessibilityIdentifier("prayer_title_\(prayer.title)")
+                
+                // Type badge
+                Text(prayer.type.rawValue)
+                    .font(.caption)
+                    .fontWeight(.semibold)
                     .foregroundColor(.orange)
-                    .frame(width: 40, height: 40)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
                     .background(Color.orange.opacity(0.1))
-                    .clipShape(Circle())
+                    .cornerRadius(8)
+                
+                // Description
+                Text(prayer.description)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .lineLimit(2)
                 
                 Spacer()
                 
-                Button(action: {
-                    libraryViewModel.toggleBookmark(for: prayer)
-                    isBookmarked.toggle()
-                }) {
-                    Image(systemName: isBookmarked ? "bookmark.fill" : "bookmark")
-                        .foregroundColor(isBookmarked ? .orange : .gray)
+                // Verse count
+                HStack {
+                    Image(systemName: "text.alignleft")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Text("\(prayer.totalVerses) verses")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
                 }
-                .buttonStyle(PlainButtonStyle())
             }
+            .padding()
+            .frame(height: 180)
+            .background(Color(.systemBackground))
+            .cornerRadius(12)
+            .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 2)
             
-            // Title
-            Text(prayer.displayTitle)
-                .font(.headline)
-                .foregroundColor(.primary)
-                .lineLimit(2)
-            
-            // Type badge
-            Text(prayer.type.rawValue)
-                .font(.caption)
-                .fontWeight(.semibold)
-                .foregroundColor(.orange)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(Color.orange.opacity(0.1))
-                .cornerRadius(8)
-            
-            // Description
-            Text(prayer.description)
-                .font(.caption)
-                .foregroundColor(.secondary)
-                .lineLimit(2)
-            
-            Spacer()
-            
-            // Verse count
-            HStack {
-                Image(systemName: "text.alignleft")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                Text("\(prayer.totalVerses) verses")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+            // Bookmark button overlay - doesn't block NavigationLink
+            Button(action: {
+                libraryViewModel.toggleBookmark(for: prayer)
+                isBookmarked.toggle()
+            }) {
+                Image(systemName: isBookmarked ? "bookmark.fill" : "bookmark")
+                    .foregroundColor(isBookmarked ? .orange : .gray)
+                    .padding(8)
+                    .background(Color(.systemBackground))
+                    .clipShape(Circle())
+                    .shadow(color: Color.black.opacity(0.1), radius: 2, x: 0, y: 1)
             }
+            .buttonStyle(PlainButtonStyle())
+            .padding(8)
+            .accessibilityIdentifier("bookmark_button_\(prayer.id.uuidString)")
+            .accessibilityLabel(isBookmarked ? "Bookmarked" : "Not bookmarked")
         }
-        .padding()
-        .frame(height: 180)
-        .background(Color(.systemBackground))
-        .cornerRadius(12)
-        .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 2)
     }
     
     private func iconForPrayer(_ prayer: Prayer) -> String {

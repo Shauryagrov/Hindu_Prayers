@@ -21,13 +21,16 @@ This guide ensures we test thoroughly after each step to prevent breaking existi
 - [ ] Can navigate past welcome screen
 
 #### 2. Navigation & Tabs
-- [ ] All 5 tabs are accessible (Library, Verses, Quiz, Complete, Settings)
-- [ ] Library tab is FIRST (leftmost tab)
+- [ ] All 3 tabs are accessible (Library, Bookmarks, Settings)
+- [ ] Library tab is FIRST (leftmost tab, index 0)
+- [ ] Bookmarks tab is SECOND (index 1)
+- [ ] Settings tab is THIRD (index 2)
 - [ ] Tab switching works smoothly
 - [ ] No crashes when switching tabs
 - [ ] Audio stops when switching tabs (as expected)
 
-#### 3. Hanuman Chalisa - Verses Tab
+#### 3. Hanuman Chalisa - Via Library Tab
+- [ ] Navigate: Library → Hanuman Chalisa → VerseListViewContent appears
 - [ ] Verse list loads correctly
 - [ ] Opening Dohas (2) are visible
 - [ ] Main verses (40) are visible
@@ -37,6 +40,7 @@ This guide ensures we test thoroughly after each step to prevent breaking existi
 - [ ] Verse detail view shows English translation
 - [ ] Verse detail view shows explanation
 - [ ] Can navigate back from verse detail
+- [ ] "Complete Chalisa" button works (top navigation)
 
 #### 4. Audio Playback
 - [ ] Can play Hindi audio for a verse
@@ -46,14 +50,16 @@ This guide ensures we test thoroughly after each step to prevent breaking existi
 - [ ] Audio stops when navigating away
 - [ ] Indian accent is used (check console logs for voice selection)
 
-#### 5. Complete Chalisa Tab
+#### 5. Complete Playback (Via Prayer Detail)
+- [ ] Navigate: Library → Prayer → "Complete Playback" button
 - [ ] Complete view loads
 - [ ] Can start complete playback
 - [ ] Playback progresses through verses
 - [ ] Can pause/resume
 - [ ] Can stop playback
 
-#### 6. Quiz Tab
+#### 6. Quiz (Via Prayer Detail)
+- [ ] Navigate: Library → Hanuman Chalisa → "Practice Quiz" button (if available)
 - [ ] Quiz view loads
 - [ ] Can start a quiz
 - [ ] Questions display correctly
@@ -86,10 +92,12 @@ This guide ensures we test thoroughly after each step to prevent breaking existi
 
 **Critical User Journey:**
 1. Launch app → Welcome screen shows "Hindu Prayers" → Tap "Browse Library" → Should open Library tab (first tab)
-2. From Library → Tap "Hanuman Chalisa" → Navigate to Verses tab → Tap verse 1 → Play Hindi → Play English → Navigate back
-3. From tabs → Open Complete tab (4th tab) → Start playback → Verify it plays
-4. From tabs → Open Quiz tab (3rd tab) → Start quiz → Answer questions → View results
-5. Bookmark a verse → Close app → Reopen → Verify bookmark persists
+2. From Library → Tap "Hanuman Chalisa" → VerseListViewContent appears → Tap verse 1 → VerseDetailView appears → Play Hindi → Play English → Navigate back
+3. From Library → Tap "Hanuman Chalisa" → Tap "Complete Chalisa" button → CompleteChalisaView appears → Start playback → Verify it plays
+4. From Library → Tap "Hanuman Aarti" → PrayerDetailView appears → Tap "Practice Quiz" (if available) → Quiz appears → Answer questions → View results
+5. Bookmark a prayer in Library → Navigate to Bookmarks tab → Verify prayer appears → Tap prayer → Navigate to detail → Navigate back
+
+**For comprehensive regression testing, see: `REGRESSION_TEST_CHECKLIST.md`**
 
 ## Testing Methods
 

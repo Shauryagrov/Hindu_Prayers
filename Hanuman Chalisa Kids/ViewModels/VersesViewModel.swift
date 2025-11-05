@@ -82,6 +82,7 @@ class VersesViewModel: NSObject, ObservableObject {
     // Move PlaybackContent enum inside the class
     enum PlaybackContent {
         case mainText
+        case englishTranslation
         case explanation
     }
     
@@ -178,58 +179,8 @@ class VersesViewModel: NSObject, ObservableObject {
         }
     }
     
-    // Add a VoiceManager class to handle voice selection and caching
-    class VoiceManager {
-        static let shared = VoiceManager()
-        private var cachedVoices: [String: AVSpeechSynthesisVoice] = [:]
-        
-        func getVoice(forLanguage language: String) -> AVSpeechSynthesisVoice {
-            if let cachedVoice = cachedVoices[language] {
-                return cachedVoice
-            }
-            
-            let voices = AVSpeechSynthesisVoice.speechVoices()
-            
-            let selectedVoice: AVSpeechSynthesisVoice
-            
-            if language == "hi-IN" {
-                // For Hindi text - prioritize female Hindi voices
-                let hindiVoiceIds = [
-                    "com.apple.voice.compact.hi-IN.Lekha",
-                    "com.apple.ttsbundle.Lekha-compact"
-                ]
-                
-                if let preferredVoice = hindiVoiceIds.compactMap({ id in 
-                    voices.first(where: { $0.identifier == id })
-                }).first {
-                    selectedVoice = preferredVoice
-                } else {
-                    selectedVoice = AVSpeechSynthesisVoice(language: "hi-IN") ?? AVSpeechSynthesisVoice()
-                }
-            } else {
-                // For English text - try to find a female Indian English voice
-                if let femaleIndianVoice = voices.first(where: { 
-                    $0.language == "en-IN" && 
-                    ($0.identifier.contains("Veena") || 
-                     $0.identifier.contains("Tara") || 
-                     $0.identifier.contains("Isha"))
-                }) {
-                    selectedVoice = femaleIndianVoice
-                } else if let samanthaVoice = voices.first(where: {
-                    $0.identifier == "com.apple.voice.compact.en-US.Samantha"
-                }) {
-                    // Fallback to Samantha (female US voice)
-                    selectedVoice = samanthaVoice
-                } else {
-                    // Last resort - any English voice
-                    selectedVoice = AVSpeechSynthesisVoice(language: "en-US") ?? AVSpeechSynthesisVoice()
-                }
-            }
-            
-            cachedVoices[language] = selectedVoice
-            return selectedVoice
-        }
-    }
+    // Voice caching to avoid repeated queries
+    private var cachedVoices: [String: AVSpeechSynthesisVoice] = [:]
     
     // Make cache thread-safe
     private let cacheLock = NSLock()
@@ -479,6 +430,30 @@ class VersesViewModel: NSObject, ObservableObject {
         
         // Start speaking
         synthesizer.speak(utterance)
+    }
+    
+    // Play the English Translation (meaning) part
+    private func playEnglishTranslation(for verse: Verse, using source: PlaybackSource = .none) {
+        print("Playing English Translation for verse: \(verse.number) using source: \(source)")
+        
+        // Ensure audio session is active before playback
+        ensureAudioSessionIsActive()
+        
+        // Set the playback state to englishTranslation
+        currentPlaybackState = .englishTranslation
+        
+        // Set up the utterance for English translation - use Indian English for authentic accent
+        let utterance = AVSpeechUtterance(string: verse.meaning)
+        utterance.voice = getVoice(forLanguage: "en-IN")  // Use Indian English
+        utterance.rate = speechRate  // Use the speechRate property
+        utterance.pitchMultiplier = 1.0
+        
+        // Get the appropriate synthesizer based on source
+        let synth = getSynthesizer(for: source)
+        
+        // Start speaking with the correct synthesizer
+        print("Speaking English translation using synthesizer for source: \(source)")
+        synth.speak(utterance)
     }
     
     // Update the playEnglishPart method to support word highlighting
@@ -1282,83 +1257,40 @@ class VersesViewModel: NSObject, ObservableObject {
     // For Hindi: Look for "Lekha" under Hindi (India)
     // For English: Look for "Veena", "Tara", "Isha", "Rishi", "Neel", or "Kajal" under English (India)
     private func getVoice(forLanguage languageCode: String) -> AVSpeechSynthesisVoice? {
-        let allVoices = AVSpeechSynthesisVoice.speechVoices()
-        
-        if languageCode == "hi-IN" {
-            // For Hindi: Prioritize Indian Hindi voices
-            let preferredHindiVoiceIds = [
-                "com.apple.voice.compact.hi-IN.Lekha",
-                "com.apple.ttsbundle.Lekha-compact",
-                "com.apple.voice.premium.hi-IN.Lekha"
-            ]
-            
-            // Try preferred Hindi voices first
-            for voiceId in preferredHindiVoiceIds {
-                if let voice = allVoices.first(where: { $0.identifier == voiceId }) {
-                    print("Using Hindi voice: \(voice.name) (\(voice.identifier))")
-                    return voice
-                }
-            }
-            
-            // Try any hi-IN voice
-            if let hindiVoice = allVoices.first(where: { $0.language == "hi-IN" }) {
-                print("Using available Hindi voice: \(hindiVoice.name)")
-                return hindiVoice
-            }
-            
-            // Fallback to any Hindi voice
-            if let hindiVoice = allVoices.first(where: { $0.language.starts(with: "hi") }) {
-                print("Using fallback Hindi voice: \(hindiVoice.name)")
-                return hindiVoice
-            }
-        } else if languageCode == "en-IN" || languageCode == "en-US" {
-            // For English: Prioritize Indian English voices for authentic accent
-            let preferredIndianEnglishVoiceNames = [
-                "Veena",      // Female Indian English voice
-                "Tara",       // Female Indian English voice
-                "Isha",       // Female Indian English voice
-                "Rishi",      // Male Indian English voice
-                "Neel",       // Male Indian English voice
-                "Kajal"       // Female Indian English voice
-            ]
-            
-            // Try to find Indian English voices first
-            for voiceName in preferredIndianEnglishVoiceNames {
-                if let indianVoice = allVoices.first(where: { 
-                    $0.language == "en-IN" && 
-                    ($0.name.contains(voiceName) || $0.identifier.contains(voiceName))
-                }) {
-                    print("Using Indian English voice: \(indianVoice.name) (\(indianVoice.identifier))")
-                    return indianVoice
-                }
-            }
-            
-            // Try any en-IN voice
-            if let indianVoice = allVoices.first(where: { $0.language == "en-IN" }) {
-                print("Using available Indian English voice: \(indianVoice.name)")
-                return indianVoice
-            }
-            
-            // Fallback to US English (but prefer female voices for better pronunciation)
-            if let usVoice = allVoices.first(where: { 
-                $0.language == "en-US" && 
-                ($0.name.contains("Samantha") || $0.name.contains("Karen") || $0.name.contains("Moira"))
-            }) {
-                print("Using fallback US English voice: \(usVoice.name)")
-                return usVoice
-            }
-            
-            // Last resort: any English voice
-            if let anyEnglish = allVoices.first(where: { $0.language.starts(with: "en") }) {
-                print("Using any available English voice: \(anyEnglish.name)")
-                return anyEnglish
-            }
+        // Check cache first to avoid any voice queries
+        if let cached = cachedVoices[languageCode] {
+            return cached
         }
         
-        // Final fallback
-        print("Using default system voice")
-        return AVSpeechSynthesisVoice(language: languageCode) ?? AVSpeechSynthesisVoice(language: "en-US")
+        // Use simple direct voice initialization - NO speechVoices() call
+        // This completely avoids GryphonVoice/VocalizerVoice query errors
+        let voice: AVSpeechSynthesisVoice?
+        
+        if languageCode == "hi-IN" {
+            // Try direct initialization first (fast, no query)
+            voice = AVSpeechSynthesisVoice(language: "hi-IN") ?? 
+                    AVSpeechSynthesisVoice(language: "hi") ?? 
+                    AVSpeechSynthesisVoice(language: "en-US")
+        } else if languageCode == "en-IN" || languageCode == "en-US" {
+            // Try Indian English first
+            voice = AVSpeechSynthesisVoice(language: "en-IN") ?? 
+                    AVSpeechSynthesisVoice(language: "en-US") ?? 
+                    AVSpeechSynthesisVoice()
+        } else {
+            // Generic fallback
+            voice = AVSpeechSynthesisVoice(language: languageCode) ?? 
+                    AVSpeechSynthesisVoice(language: "en-US") ?? 
+                    AVSpeechSynthesisVoice()
+        }
+        
+        // Cache the voice to avoid repeated initialization
+        if let voice = voice {
+            cachedVoices[languageCode] = voice
+        }
+        
+        return voice
     }
+    
     
     func markVerseAsCompleted(_ verse: Verse) {
         if let index = verses.firstIndex(where: { $0.id == verse.id }) {
@@ -1895,17 +1827,22 @@ extension VersesViewModel: AVSpeechSynthesizerDelegate {
                 return
             }
             
-            // Handle verse detail playback - play Hindi then English
+            // Handle verse detail playback - play Hindi then English Translation then Explanation
             if source == .verseDetail {
                 if let verse = self.currentVerse {
                     if self.currentPlaybackState == .mainText {
-                        // Continue with explanation after Hindi part
-                        print("Hindi part finished in verse detail, playing English explanation")
+                        // Continue with English Translation after Hindi part
+                        print("Hindi part finished in verse detail, playing English Translation")
+                        self.currentPlaybackState = .englishTranslation
+                        self.playEnglishTranslation(for: verse, using: .verseDetail)
+                    } else if self.currentPlaybackState == .englishTranslation {
+                        // Continue with explanation after English Translation
+                        print("English Translation finished in verse detail, playing explanation")
                         self.currentPlaybackState = .explanation
                         self.playEnglishPart(for: verse, using: .verseDetail)
                     } else {
-                        // We've finished both parts, stop playback
-                        print("Both parts finished in verse detail, stopping playback")
+                        // We've finished all parts, stop playback
+                        print("All parts finished in verse detail, stopping playback")
                         self.stopAudio(for: .verseDetail)
                     }
                 }

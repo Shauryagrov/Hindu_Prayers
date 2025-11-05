@@ -235,6 +235,21 @@ struct CompleteChalisaView: View {
         }
         .navigationTitle("Complete Chalisa")
         .navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(true)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                Button(action: {
+                    viewModel.stopAudio()
+                    dismiss()
+                }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "chevron.backward")
+                        Text("Back")
+                    }
+                    .foregroundColor(.orange)
+                }
+            }
+        }
         .onDisappear {
             // Stop audio when leaving the view
             if viewModel.isCompletePlaying || viewModel.isPlayingCompleteVersion {
