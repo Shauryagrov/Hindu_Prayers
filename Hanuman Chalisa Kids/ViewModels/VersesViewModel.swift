@@ -62,6 +62,7 @@ class VersesViewModel: NSObject, ObservableObject {
     @Published var quizResults: [QuizResult] = []
     @Published var isPlaying: Bool = false
     @Published var speechRate: Float = 0.4
+    @Published var showTransliteration: Bool = false
     
     private var audioPlayer: AVAudioPlayer?
     private var audioSession: AVAudioSession?
@@ -208,6 +209,10 @@ class VersesViewModel: NSObject, ObservableObject {
     // Add a property to track current verse
     @Published private(set) var currentVerse: Verse?
     
+    // For generic prayer playback (non-Chalisa)
+    private var genericPrayerVerses: [Verse] = []
+    private var genericPrayerCurrentIndex: Int = 0
+    
     private var lastHighlightedWord: String?
     private var lastHighlightedRange: NSRange?
     
@@ -301,6 +306,9 @@ class VersesViewModel: NSObject, ObservableObject {
         // Call super.init() before using self properties
         super.init()
         
+        // Load transliteration preference
+        self.showTransliteration = UserDefaults.standard.bool(forKey: "showTransliteration")
+        
         // Setup all synthesizers
         synthesizer.delegate = self
         quizSynthesizer.delegate = self
@@ -321,7 +329,8 @@ class VersesViewModel: NSObject, ObservableObject {
                     meaning: openingDoha[0].meaning, 
                     simpleTranslation: VersesViewModel.getDohaSimpleTranslation(number: -1),
                     explanation: openingDoha[0].explanation, 
-                    audioFileName: "doha_1"
+                    audioFileName: "doha_1",
+                    transliteration: VersesViewModel.getTransliteration(for: -1)
                 ),
                 Verse(
                     number: -2, 
@@ -329,7 +338,8 @@ class VersesViewModel: NSObject, ObservableObject {
                     meaning: openingDoha[1].meaning, 
                     simpleTranslation: VersesViewModel.getDohaSimpleTranslation(number: -2),
                     explanation: openingDoha[1].explanation, 
-                    audioFileName: "doha_2"
+                    audioFileName: "doha_2",
+                    transliteration: VersesViewModel.getTransliteration(for: -2)
                 )
             ]),
             VerseSection(title: "Main Verses", verses: verses),
@@ -340,7 +350,8 @@ class VersesViewModel: NSObject, ObservableObject {
                     meaning: closingDoha.meaning, 
                     simpleTranslation: VersesViewModel.getDohaSimpleTranslation(number: -3),
                     explanation: closingDoha.explanation, 
-                    audioFileName: "doha_3"
+                    audioFileName: "doha_3",
+                    transliteration: VersesViewModel.getTransliteration(for: -3)
                 )
             ])
         ]
@@ -581,6 +592,56 @@ class VersesViewModel: NSObject, ObservableObject {
         }
     }
     
+    /// Helper function to get transliteration for Hanuman Chalisa verses
+    private static func getTransliteration(for verseNumber: Int) -> String? {
+        let transliterationMap: [Int: String] = [
+            -1: "Shri Guru Charan Saroj Raj Nij Man Mukur Sudhari\nVarnao Raghuvar Vimal Jasu Jo Dayaku Phal Chari",
+            -2: "Budhi Heen Tanu Janike, Sumirow Pavan Kumar\nBal Buddhi Vidya Dehu Mohi, Harahu Kalesh Vikaar",
+            1: "Jay Hanuman Gyan Gun Sagar\nJay Kapis Tihun Lok Ujagar",
+            2: "Ram Dut Atulit Bal Dhama\nAnjani Putra Pavan Sut Nama",
+            3: "Mahabir Bikram Bajrangi\nKumati Nivar Sumati Ke Sangi",
+            4: "Kanchan Baran Biraj Subesa\nKanan Kundal Kunchit Kesha",
+            5: "Hath Vajra Aur Dhvaja Viraje\nKaandhe Moonj Janeu Saje",
+            6: "Shankar Suvan Kesri Nandan\nTej Pratap Maha Jag Vandan",
+            7: "Vidyavan Guni Ati Chatur\nRam Kaj Karibe Ko Aatur",
+            8: "Prabhu Charitra Sunibe Ko Rasiya\nRam Lakhan Sita Man Basiya",
+            9: "Sukshma Roop Dhari Siyahin Dikhava\nVikat Roop Dhari Lanka Jarava",
+            10: "Bhima Roop Dhari Asur Sanhare\nRamchandra Ke Kaj Sanvare",
+            11: "Laye Sanjivan Lakhan Jiyaye\nShri Raghuvir Harashi Ur Laye",
+            12: "Raghupati Kinhi Bahut Badai\nTum Mama Priya Bharat Sam Bhai",
+            13: "Sahas Badan Tumharo Jas Gavein\nAs Kahi Shripati Kanth Lagavein",
+            14: "Sankadik Brahmadi Muni Saare\nNarad Sarad Sahit Ahi Naare",
+            15: "Jum Kuber Digpaal Jahan Te\nKavi Kovid Kahi Sake Kahan Te",
+            16: "Tum Upkar Sugrivahi Keenha\nRam Milaaye Rajpad Deenha",
+            17: "Tumharo Mantra Vibhishan Maana\nLankeshwar Bhaye Sab Jag Jaana",
+            18: "Jug Sahastra Jojan Par Bhanu\nLilyo Tahi Madhur Phal Janu",
+            19: "Prabhu Mudrika Meli Mukh Maahi\nJaladhi Langhi Gaye Acharaj Naahi",
+            20: "Durgam Kaj Jagat Ke Jeete\nSugam Anugrah Tumhre Te Te",
+            21: "Ram Duare Tum Rakhvare\nHot Na Aagya Binu Paisare",
+            22: "Sab Sukh Lahen Tumhari Sharna\nTum Rachchhak Kahu Ko Darna",
+            23: "Aapan Tej Samharo Aape\nTeenon Lok Hank Te Kanpe",
+            24: "Bhoot Pisaach Nikat Nahin Aavein\nMahabir Jab Naam Sunavein",
+            25: "Nase Rog Hare Sab Peera\nJapat Nirantar Hanumat Beera",
+            26: "Sankat Te Hanuman Chhudavein\nMan Kram Vachan Dhyan Jo Lavein",
+            27: "Sab Par Ram Tapasvee Raja\nTin Ke Kaj Sakal Tum Saja",
+            28: "Aur Manorath Jo Koi Lavein\nSoi Amit Jivan Phal Pavein",
+            29: "Charon Jug Partap Tumhara\nHai Parsiddh Jagat Ujiyara",
+            30: "Sadhu Sant Ke Tum Rakhware\nAsur Nikandan Ram Dulare",
+            31: "Asht Siddhi Nav Nidhi Ke Daata\nAs Bar Deen Janki Maata",
+            32: "Ram Rasayan Tumhare Paasa\nSada Raho Raghupati Ke Daasa",
+            33: "Tumhare Bhajan Ram Ko Pavein\nJanam Janam Ke Dukh Bisravein",
+            34: "Anth Kaal Raghuvir Pur Jayi\nJahan Janam Hari Bakht Kahayi",
+            35: "Aur Devta Chitt Na Dharai\nHanumat Sei Sarv Sukh Karai",
+            36: "Sankat Kate Mite Sab Peera\nJo Sumire Hanumat Balbeera",
+            37: "Jay Jay Jay Hanuman Gosai\nKripa Karahu Gurudev Ki Naai",
+            38: "Jo Sat Baar Paath Kar Koi\nChhutahi Bandi Maha Sukh Hoi",
+            39: "Jo Yah Padhe Hanuman Chalisa\nHoye Siddhi Sakhi Gaurisa",
+            40: "Tulsidas Sada Hari Chera\nKije Nath Hriday Mahn Dera",
+            -3: "Pavan Tanay Sankat Haran, Mangal Murati Roop\nRam Lakhan Sita Sahit, Hriday Basahu Sur Bhoop"
+        ]
+        return transliterationMap[verseNumber]
+    }
+    
     internal static func getAllVerses() -> [Verse] {
         [
             Verse(
@@ -589,7 +650,8 @@ class VersesViewModel: NSObject, ObservableObject {
                 meaning: "Victory to Hanuman, ocean of wisdom and virtue, Victory to the Lord of monkeys who is well-known in all the three worlds.",
                 simpleTranslation: "Praise to Hanuman, who is full of wisdom and goodness. Praise to the monkey king who is famous in all three worlds.",
                 explanation: "Hanuman ji is very wise and knows many good things. Everyone in all three worlds knows about him and respects him.",
-                audioFileName: "verse_1"
+                audioFileName: "verse_1",
+                transliteration: getTransliteration(for: 1)
             ),
             Verse(
                 number: 2,
@@ -597,7 +659,8 @@ class VersesViewModel: NSObject, ObservableObject {
                 meaning: "You are Ram's messenger, the abode of incomparable strength. You are known as Anjani's son and the son of the Wind God.",
                 simpleTranslation: "You are Ram's messenger and very strong. You are Anjani's son and the Wind God's son.",
                 explanation: "Hanuman ji is very strong and is a faithful messenger of Lord Ram. His mother's name is Anjani, and the Wind God is his father.",
-                audioFileName: "verse_2"
+                audioFileName: "verse_2",
+                transliteration: getTransliteration(for: 2)
             ),
             Verse(
                 number: 3,
@@ -605,7 +668,8 @@ class VersesViewModel: NSObject, ObservableObject {
                 meaning: "The great hero, mighty as a thunderbolt, with limbs as hard as thunder. You remove evil thoughts and are the companion of good intellect.",
                 simpleTranslation: "You are a great hero, strong as thunder. You help us think good thoughts instead of bad ones.",
                 explanation: "Hanuman ji is very brave and strong like thunder. He helps us remove bad thoughts and helps us think good thoughts.",
-                audioFileName: "verse_3"
+                audioFileName: "verse_3",
+                transliteration: getTransliteration(for: 3)
             ),
             Verse(
                 number: 4,
@@ -613,7 +677,8 @@ class VersesViewModel: NSObject, ObservableObject {
                 meaning: "Your complexion is golden and you wear beautiful clothes. You wear earrings and have curly hair.",
                 simpleTranslation: "Your skin shines like gold and you wear pretty clothes. You have curly hair and wear nice earrings.",
                 explanation: "Hanuman ji has a beautiful golden color and wears nice clothes. He has curly hair and wears earrings.",
-                audioFileName: "verse_4"
+                audioFileName: "verse_4",
+                transliteration: getTransliteration(for: 4)
             ),
             Verse(
                 number: 5,
@@ -621,7 +686,8 @@ class VersesViewModel: NSObject, ObservableObject {
                 meaning: "In your hands shine the thunderbolt and a flag, and on your shoulder shines the sacred thread.",
                 simpleTranslation: "You hold a powerful weapon and a flag in your hands. On your shoulder, you wear a special holy thread.",
                 explanation: "Hanuman ji carries powerful things like a thunderbolt and a flag. He also wears a sacred thread on his shoulder, showing he is devoted to God.",
-                audioFileName: "verse_5"
+                audioFileName: "verse_5",
+                transliteration: getTransliteration(for: 5)
             ),
             Verse(
                 number: 6,
@@ -629,7 +695,8 @@ class VersesViewModel: NSObject, ObservableObject {
                 meaning: "Son of Shiva, son of Kesari, your glory and might are praised by the whole world.",
                 simpleTranslation: "Son of Shiva, son of Kesari, your glory and might are praised by the whole world.",
                 explanation: "Hanuman ji is like a son to Lord Shiva and his father is Kesari. Everyone in the world respects him for his strength and goodness.",
-                audioFileName: "verse_6"
+                audioFileName: "verse_6",
+                transliteration: getTransliteration(for: 6)
             ),
             Verse(
                 number: 7,
@@ -637,7 +704,8 @@ class VersesViewModel: NSObject, ObservableObject {
                 meaning: "You are wise, virtuous and very clever, always eager to do Lord Ram's work.",
                 simpleTranslation: "You are wise, virtuous and very clever, always eager to do Lord Ram's work.",
                 explanation: "Hanuman ji is very smart and good at many things. He is always ready to help Lord Ram with any task.",
-                audioFileName: "verse_7"
+                audioFileName: "verse_7",
+                transliteration: getTransliteration(for: 7)
             ),
             Verse(
                 number: 8,
@@ -645,7 +713,8 @@ class VersesViewModel: NSObject, ObservableObject {
                 meaning: "You delight in hearing about Lord Ram's deeds, and Ram, Lakshman and Sita dwell in your heart.",
                 simpleTranslation: "You delight in hearing about Lord Ram's deeds, and Ram, Lakshman and Sita dwell in your heart.",
                 explanation: "Hanuman ji loves to hear stories about Lord Ram. He keeps Ram, Lakshman and Sita in his heart with great love.",
-                audioFileName: "verse_8"
+                audioFileName: "verse_8",
+                transliteration: getTransliteration(for: 8)
             ),
             Verse(
                 number: 9,
@@ -653,7 +722,8 @@ class VersesViewModel: NSObject, ObservableObject {
                 meaning: "You took a tiny form to show yourself to Sita, and a terrible form to burn Lanka.",
                 simpleTranslation: "You took a tiny form to show yourself to Sita, and a terrible form to burn Lanka.",
                 explanation: "Hanuman ji can change his size - he became very small to meet Sita, and very big to burn the city of Lanka.",
-                audioFileName: "verse_9"
+                audioFileName: "verse_9",
+                transliteration: getTransliteration(for: 9)
             ),
             Verse(
                 number: 10,
@@ -661,7 +731,8 @@ class VersesViewModel: NSObject, ObservableObject {
                 meaning: "Taking a mighty form you killed demons, and accomplished Lord Ram's tasks.",
                 simpleTranslation: "Taking a mighty form you killed demons, and accomplished Lord Ram's tasks.",
                 explanation: "Hanuman ji became very powerful to fight the bad demons and helped Lord Ram complete his important work.",
-                audioFileName: "verse_10"
+                audioFileName: "verse_10",
+                transliteration: getTransliteration(for: 10)
             ),
             Verse(
                 number: 11,
@@ -669,7 +740,8 @@ class VersesViewModel: NSObject, ObservableObject {
                 meaning: "You brought the Sanjivani herb and restored Lakshman's life, for which Lord Ram embraced you with joy.",
                 simpleTranslation: "You brought the Sanjivani herb and restored Lakshman's life, for which Lord Ram embraced you with joy.",
                 explanation: "Hanuman ji brought a special healing plant to save Lakshman's life. Lord Ram was so happy that he hugged Hanuman ji.",
-                audioFileName: "verse_11"
+                audioFileName: "verse_11",
+                transliteration: getTransliteration(for: 11)
             ),
             Verse(
                 number: 12,
@@ -677,7 +749,8 @@ class VersesViewModel: NSObject, ObservableObject {
                 meaning: "Lord Ram praised you greatly saying 'You are dear to me like my brother Bharat.'",
                 simpleTranslation: "Lord Ram praised you greatly saying 'You are dear to me like my brother Bharat.'",
                 explanation: "Lord Ram praised Hanuman ji a lot and said he loves him just like his own brother Bharat.",
-                audioFileName: "verse_12"
+                audioFileName: "verse_12",
+                transliteration: getTransliteration(for: 12)
             ),
             Verse(
                 number: 13,
@@ -685,7 +758,8 @@ class VersesViewModel: NSObject, ObservableObject {
                 meaning: "Lord Ram said 'Even a thousand mouths cannot sing your glory' and embraced you.",
                 simpleTranslation: "Lord Ram said 'Even a thousand mouths cannot sing your glory' and embraced you.",
                 explanation: "Lord Ram said that even with a thousand mouths, one can't fully describe how great Hanuman ji is, and then hugged him.",
-                audioFileName: "verse_13"
+                audioFileName: "verse_13",
+                transliteration: getTransliteration(for: 13)
             ),
             Verse(
                 number: 14,
@@ -693,7 +767,8 @@ class VersesViewModel: NSObject, ObservableObject {
                 meaning: "Sages like Sanak, gods like Brahma, Narad, Saraswati and the serpent king all praise you.",
                 simpleTranslation: "Sages like Sanak, gods like Brahma, Narad, Saraswati and the serpent king all praise you.",
                 explanation: "Many great sages, gods, and divine beings like Brahma, Narad, and Saraswati respect Hanuman ji.",
-                audioFileName: "verse_14"
+                audioFileName: "verse_14",
+                transliteration: getTransliteration(for: 14)
             ),
             Verse(
                 number: 15,
@@ -701,7 +776,8 @@ class VersesViewModel: NSObject, ObservableObject {
                 meaning: "Even Yama, Kuber and the guardians of directions, and all poets and scholars cannot describe your glory.",
                 simpleTranslation: "Even Yama, Kuber and the guardians of directions, and all poets and scholars cannot describe your glory.",
                 explanation: "Even powerful gods like Yama and Kuber, and all wise people and poets can't fully describe how great Hanuman ji is.",
-                audioFileName: "verse_15"
+                audioFileName: "verse_15",
+                transliteration: getTransliteration(for: 15)
             ),
             Verse(
                 number: 16,
@@ -709,7 +785,8 @@ class VersesViewModel: NSObject, ObservableObject {
                 meaning: "You helped Sugriva by introducing him to Ram, who then restored his kingdom to him.",
                 simpleTranslation: "You helped Sugriva by introducing him to Ram, who then restored his kingdom to him.",
                 explanation: "Hanuman ji helped Sugriva by introducing him to Lord Ram, who then helped Sugriva become king again.",
-                audioFileName: "verse_16"
+                audioFileName: "verse_16",
+                transliteration: getTransliteration(for: 16)
             ),
             Verse(
                 number: 17,
@@ -717,7 +794,8 @@ class VersesViewModel: NSObject, ObservableObject {
                 meaning: "Vibhishan followed your advice and became the king of Lanka, as the whole world knows.",
                 simpleTranslation: "Vibhishan followed your advice and became the king of Lanka, as the whole world knows.",
                 explanation: "When Vibhishan listened to Hanuman ji's advice, he became the king of Lanka, and everyone knows this.",
-                audioFileName: "verse_17"
+                audioFileName: "verse_17",
+                transliteration: getTransliteration(for: 17)
             ),
             Verse(
                 number: 18,
@@ -725,7 +803,8 @@ class VersesViewModel: NSObject, ObservableObject {
                 meaning: "You leapt across thousands of miles to swallow the sun, thinking it to be a sweet fruit.",
                 simpleTranslation: "You leapt across thousands of miles to swallow the sun, thinking it to be a sweet fruit.",
                 explanation: "When Hanuman ji was young, he jumped thousands of miles thinking the sun was a sweet fruit!",
-                audioFileName: "verse_18"
+                audioFileName: "verse_18",
+                transliteration: getTransliteration(for: 18)
             ),
             Verse(
                 number: 19,
@@ -733,7 +812,8 @@ class VersesViewModel: NSObject, ObservableObject {
                 meaning: "With Lord Ram's ring in your mouth, it's no wonder you crossed the ocean.",
                 simpleTranslation: "With Lord Ram's ring in your mouth, it's no wonder you crossed the ocean.",
                 explanation: "Carrying Lord Ram's ring in his mouth, Hanuman ji easily jumped across the ocean - it wasn't surprising because he's so powerful!",
-                audioFileName: "verse_19"
+                audioFileName: "verse_19",
+                transliteration: getTransliteration(for: 19)
             ),
             Verse(
                 number: 20,
@@ -741,7 +821,8 @@ class VersesViewModel: NSObject, ObservableObject {
                 meaning: "All the difficult tasks in the world become easy by your grace.",
                 simpleTranslation: "All the difficult tasks in the world become easy by your grace.",
                 explanation: "When Hanuman ji blesses us, even the hardest tasks in the world become easy to do.",
-                audioFileName: "verse_20"
+                audioFileName: "verse_20",
+                transliteration: getTransliteration(for: 20)
             ),
             Verse(
                 number: 21,
@@ -749,7 +830,8 @@ class VersesViewModel: NSObject, ObservableObject {
                 meaning: "You are the guardian at Ram's door, no one can enter without your permission.",
                 simpleTranslation: "You are the guardian at Ram's door, no one can enter without your permission.",
                 explanation: "Hanuman ji guards Lord Ram's door, and nobody can go in without his permission.",
-                audioFileName: "verse_21"
+                audioFileName: "verse_21",
+                transliteration: getTransliteration(for: 21)
             ),
             Verse(
                 number: 22,
@@ -757,7 +839,8 @@ class VersesViewModel: NSObject, ObservableObject {
                 meaning: "All find happiness in your refuge, those under your protection have nothing to fear.",
                 simpleTranslation: "All find happiness in your refuge, those under your protection have nothing to fear.",
                 explanation: "Everyone who comes to Hanuman ji for help finds happiness, and when he protects us, we don't need to be afraid of anything.",
-                audioFileName: "verse_22"
+                audioFileName: "verse_22",
+                transliteration: getTransliteration(for: 22)
             ),
             Verse(
                 number: 23,
@@ -765,7 +848,8 @@ class VersesViewModel: NSObject, ObservableObject {
                 meaning: "You alone can control your immense power, all three worlds tremble at your roar.",
                 simpleTranslation: "You alone can control your immense power, all three worlds tremble at your roar.",
                 explanation: "Hanuman ji is so powerful that only he can control his strength. When he roars, all three worlds shake!",
-                audioFileName: "verse_23"
+                audioFileName: "verse_23",
+                transliteration: getTransliteration(for: 23)
             ),
             Verse(
                 number: 24,
@@ -773,7 +857,8 @@ class VersesViewModel: NSObject, ObservableObject {
                 meaning: "Evil spirits dare not come near when they hear the mighty one's name.",
                 simpleTranslation: "Evil spirits dare not come near when they hear the mighty one's name.",
                 explanation: "When people say Hanuman ji's name, no evil spirits dare to come close.",
-                audioFileName: "verse_24"
+                audioFileName: "verse_24",
+                transliteration: getTransliteration(for: 24)
             ),
             Verse(
                 number: 25,
@@ -781,7 +866,8 @@ class VersesViewModel: NSObject, ObservableObject {
                 meaning: "All diseases and pain vanish when one constantly chants the name of the brave Hanuman.",
                 simpleTranslation: "All diseases and pain vanish when one constantly chants the name of the brave Hanuman.",
                 explanation: "When we keep saying Hanuman ji's name with devotion, all our sickness and pain goes away.",
-                audioFileName: "verse_25"
+                audioFileName: "verse_25",
+                transliteration: getTransliteration(for: 25)
             ),
             Verse(
                 number: 26,
@@ -789,7 +875,8 @@ class VersesViewModel: NSObject, ObservableObject {
                 meaning: "Hanuman relieves those from trouble who remember him in thought, word and deed.",
                 simpleTranslation: "Hanuman relieves those from trouble who remember him in thought, word and deed.",
                 explanation: "When we think about Hanuman ji, talk about him, and follow his teachings, he helps us get out of difficult situations.",
-                audioFileName: "verse_26"
+                audioFileName: "verse_26",
+                transliteration: getTransliteration(for: 26)
             ),
             Verse(
                 number: 27,
@@ -797,7 +884,8 @@ class VersesViewModel: NSObject, ObservableObject {
                 meaning: "Ram, the ascetic king, is supreme over all, and you arranged all his tasks.",
                 simpleTranslation: "Ram, the ascetic king, is supreme over all, and you arranged all his tasks.",
                 explanation: "Lord Ram is the greatest king who lived simply, and Hanuman ji helped him with all his work.",
-                audioFileName: "verse_27"
+                audioFileName: "verse_27",
+                transliteration: getTransliteration(for: 27)
             ),
             Verse(
                 number: 28,
@@ -805,7 +893,8 @@ class VersesViewModel: NSObject, ObservableObject {
                 meaning: "Whoever comes to you with any wish, obtains the unlimited fruit of life.",
                 simpleTranslation: "Whoever comes to you with any wish, obtains the unlimited fruit of life.",
                 explanation: "Anyone who comes to Hanuman ji with a wish gets blessed with great rewards in life.",
-                audioFileName: "verse_28"
+                audioFileName: "verse_28",
+                transliteration: getTransliteration(for: 28)
             ),
             Verse(
                 number: 29,
@@ -813,7 +902,8 @@ class VersesViewModel: NSObject, ObservableObject {
                 meaning: "Your glory is renowned throughout the four ages, and your fame illuminates the world.",
                 simpleTranslation: "Your glory is renowned throughout the four ages, and your fame illuminates the world.",
                 explanation: "Hanuman ji's greatness has been known for a very long time, and his fame brings light to the whole world.",
-                audioFileName: "verse_29"
+                audioFileName: "verse_29",
+                transliteration: getTransliteration(for: 29)
             ),
             Verse(
                 number: 30,
@@ -821,7 +911,8 @@ class VersesViewModel: NSObject, ObservableObject {
                 meaning: "You are the protector of saints and sages, destroyer of demons, and beloved of Ram.",
                 simpleTranslation: "You are the protector of saints and sages, destroyer of demons, and beloved of Ram.",
                 explanation: "Hanuman ji protects good people, fights against evil, and is very dear to Lord Ram.",
-                audioFileName: "verse_30"
+                audioFileName: "verse_30",
+                transliteration: getTransliteration(for: 30)
             ),
             Verse(
                 number: 31,
@@ -829,7 +920,8 @@ class VersesViewModel: NSObject, ObservableObject {
                 meaning: "You can grant the eight powers and nine treasures, this boon was given by Mother Janaki.",
                 simpleTranslation: "You can grant the eight powers and nine treasures, this boon was given by Mother Janaki.",
                 explanation: "Mother Sita blessed Hanuman ji with the power to give special gifts and treasures to his devotees.",
-                audioFileName: "verse_31"
+                audioFileName: "verse_31",
+                transliteration: getTransliteration(for: 31)
             ),
             Verse(
                 number: 32,
@@ -837,7 +929,8 @@ class VersesViewModel: NSObject, ObservableObject {
                 meaning: "You have the elixir of Ram's love and remain eternally his servant.",
                 simpleTranslation: "You have the elixir of Ram's love and remain eternally his servant.",
                 explanation: "Hanuman ji has the special blessing of Lord Ram's love and is always his faithful servant.",
-                audioFileName: "verse_32"
+                audioFileName: "verse_32",
+                transliteration: getTransliteration(for: 32)
             ),
             Verse(
                 number: 33,
@@ -845,7 +938,8 @@ class VersesViewModel: NSObject, ObservableObject {
                 meaning: "By singing your praises one reaches Ram and forgets the sorrows of many lifetimes.",
                 simpleTranslation: "By singing your praises one reaches Ram and forgets the sorrows of many lifetimes.",
                 explanation: "When we pray to Hanuman ji, we can reach Lord Ram and forget all our sadness.",
-                audioFileName: "verse_33"
+                audioFileName: "verse_33",
+                transliteration: getTransliteration(for: 33)
             ),
             Verse(
                 number: 34,
@@ -853,7 +947,8 @@ class VersesViewModel: NSObject, ObservableObject {
                 meaning: "At the time of death, one goes to Ram's abode and is known as God's devotee in future births.",
                 simpleTranslation: "At the time of death, one goes to Ram's abode and is known as God's devotee in future births.",
                 explanation: "Those who worship Hanuman ji go to Lord Ram's home and become known as true devotees.",
-                audioFileName: "verse_34"
+                audioFileName: "verse_34",
+                transliteration: getTransliteration(for: 34)
             ),
             Verse(
                 number: 35,
@@ -861,7 +956,8 @@ class VersesViewModel: NSObject, ObservableObject {
                 meaning: "One need not think of any other deity; serving Hanuman brings all happiness.",
                 simpleTranslation: "One need not think of any other deity; serving Hanuman brings all happiness.",
                 explanation: "When we serve Hanuman ji with devotion, he gives us all kinds of happiness.",
-                audioFileName: "verse_35"
+                audioFileName: "verse_35",
+                transliteration: getTransliteration(for: 35)
             ),
             Verse(
                 number: 36,
@@ -869,7 +965,8 @@ class VersesViewModel: NSObject, ObservableObject {
                 meaning: "All troubles cease and all pain disappears, for those who remember the mighty Hanuman.",
                 simpleTranslation: "All troubles cease and all pain disappears, for those who remember the mighty Hanuman.",
                 explanation: "When we remember the strong and brave Hanuman ji, all our problems and pain go away.",
-                audioFileName: "verse_36"
+                audioFileName: "verse_36",
+                transliteration: getTransliteration(for: 36)
             ),
             Verse(
                 number: 37,
@@ -877,7 +974,8 @@ class VersesViewModel: NSObject, ObservableObject {
                 meaning: "Victory, victory, victory to Lord Hanuman! Please bestow your grace as my supreme teacher.",
                 simpleTranslation: "Victory, victory, victory to Lord Hanuman! Please bestow your grace as my supreme teacher.",
                 explanation: "We praise Hanuman ji three times and ask him to bless us like a great teacher.",
-                audioFileName: "verse_37"
+                audioFileName: "verse_37",
+                transliteration: getTransliteration(for: 37)
             ),
             Verse(
                 number: 38,
@@ -885,7 +983,8 @@ class VersesViewModel: NSObject, ObservableObject {
                 meaning: "Whoever recites this hundred times will be freed from bondage and attain great bliss.",
                 simpleTranslation: "Whoever recites this hundred times will be freed from bondage and attain great bliss.",
                 explanation: "If someone reads the Hanuman Chalisa a hundred times with devotion, they will find great happiness.",
-                audioFileName: "verse_38"
+                audioFileName: "verse_38",
+                transliteration: getTransliteration(for: 38)
             ),
             Verse(
                 number: 39,
@@ -893,7 +992,8 @@ class VersesViewModel: NSObject, ObservableObject {
                 meaning: "All those who recite the Hanuman Chalisa will achieve success, Lord Shiva is witness to this.",
                 simpleTranslation: "All those who recite the Hanuman Chalisa will achieve success, Lord Shiva is witness to this.",
                 explanation: "Lord Shiva himself says that anyone who reads the Hanuman Chalisa will be successful.",
-                audioFileName: "verse_39"
+                audioFileName: "verse_39",
+                transliteration: getTransliteration(for: 39)
             ),
             Verse(
                 number: 40,
@@ -901,7 +1001,8 @@ class VersesViewModel: NSObject, ObservableObject {
                 meaning: "Tulsidas, eternally a servant of the Lord, prays 'O Lord, please dwell in my heart.'",
                 simpleTranslation: "Tulsidas, eternally a servant of the Lord, prays 'O Lord, please dwell in my heart.'",
                 explanation: "Tulsidas, who wrote this prayer, asks Hanuman ji to always stay in his heart.",
-                audioFileName: "verse_40"
+                audioFileName: "verse_40",
+                transliteration: getTransliteration(for: 40)
             )
         ]
     }
@@ -1170,6 +1271,79 @@ class VersesViewModel: NSObject, ObservableObject {
         }
     }
     
+    // Generic method to play any complete prayer
+    func playCompletePrayer(verses: [Verse]) {
+        print("Starting complete prayer playback with \(verses.count) verses")
+        
+        // Set the playback source
+        currentPlaybackSource = .completeView
+        
+        // Stop ALL audio playback from other sources first
+        stopAudio(for: .quiz)
+        stopAudio(for: .verseDetail)
+        stopAudio(for: VersesViewModel.PlaybackSource.none)
+        
+        // Then stop any existing complete playback
+        stopAudio(for: .completeView)
+        
+        // IMPORTANT: Reset the intentional stopping flag
+        isIntentionallyStopping = false
+        
+        // Store verses for sequential playback
+        genericPrayerVerses = verses
+        genericPrayerCurrentIndex = 0
+        
+        // Set up for complete playback
+        isPlayingCompleteVersion = true
+        isCompletePlaying = true
+        isCompletePaused = false
+        
+        // Play first verse
+        if let firstVerse = verses.first {
+            currentVerse = firstVerse
+            currentCompleteVerse = firstVerse  // Set this too for proper tracking
+            currentPlaybackState = .mainText
+            
+            // Start playback with a slight delay
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                self.playGenericPrayerVerse(using: .completeView)
+                self.objectWillChange.send()
+            }
+        }
+    }
+    
+    // Helper to play the current verse in genericPrayerVerses
+    private func playGenericPrayerVerse(using source: PlaybackSource) {
+        guard genericPrayerCurrentIndex < genericPrayerVerses.count else {
+            stopAudio(for: .completeView)
+            return
+        }
+        
+        print("Playing generic prayer verse \(genericPrayerCurrentIndex + 1) of \(genericPrayerVerses.count)")
+        
+        let verse = genericPrayerVerses[genericPrayerCurrentIndex]
+        
+        // Set both currentCompleteVerse and currentVerse for proper tracking
+        currentCompleteVerse = verse
+        currentVerse = verse
+        currentPlaybackState = .mainText
+        
+        // Ensure audio session is active
+        ensureAudioSessionIsActive()
+        
+        let utterance = AVSpeechUtterance(string: verse.text)
+        utterance.voice = getVoice(forLanguage: "hi-IN")
+        utterance.rate = speechRate
+        utterance.pitchMultiplier = 1.0
+        
+        let synth = getSynthesizer(for: source)
+        print("Using synthesizer: \(synth === completeSynthesizer ? "completeSynthesizer" : "other")")
+        synth.speak(utterance)
+        
+        // Notify observers to update UI
+        objectWillChange.send()
+    }
+    
     func stopCompleteChalisaPlayback() {
         print("Stopping complete chalisa playback")
         
@@ -1251,31 +1425,56 @@ class VersesViewModel: NSObject, ObservableObject {
         objectWillChange.send()
     }
     
-    // Update getVoice function to prioritize authentic Indian voices
+    // Method to clear voice cache (called when user changes voice settings)
+    func clearVoiceCache() {
+        print("Clearing voice cache")
+        cachedVoices.removeAll()
+    }
+    
+    // Update getVoice function to use user-selected voices
     // Note: If Indian voices are not available, users can download them from:
     // Settings > Accessibility > Spoken Content > Voices > [Language] > [Voice Name]
     // For Hindi: Look for "Lekha" under Hindi (India)
     // For English: Look for "Veena", "Tara", "Isha", "Rishi", "Neel", or "Kajal" under English (India)
     private func getVoice(forLanguage languageCode: String) -> AVSpeechSynthesisVoice? {
-        // Check cache first to avoid any voice queries
-        if let cached = cachedVoices[languageCode] {
-            return cached
-        }
+        var voice: AVSpeechSynthesisVoice?
         
-        // Use simple direct voice initialization - NO speechVoices() call
-        // This completely avoids GryphonVoice/VocalizerVoice query errors
-        let voice: AVSpeechSynthesisVoice?
-        
-        if languageCode == "hi-IN" {
-            // Try direct initialization first (fast, no query)
-            voice = AVSpeechSynthesisVoice(language: "hi-IN") ?? 
-                    AVSpeechSynthesisVoice(language: "hi") ?? 
-                    AVSpeechSynthesisVoice(language: "en-US")
-        } else if languageCode == "en-IN" || languageCode == "en-US" {
-            // Try Indian English first
-            voice = AVSpeechSynthesisVoice(language: "en-IN") ?? 
-                    AVSpeechSynthesisVoice(language: "en-US") ?? 
-                    AVSpeechSynthesisVoice()
+        if languageCode == "hi-IN" || languageCode == "hi" {
+            // Check if user has selected a specific Hindi voice
+            if let selectedVoiceId = UserDefaults.standard.string(forKey: "selectedHindiVoice"),
+               selectedVoiceId != "default",
+               !selectedVoiceId.isEmpty {
+                print("Using selected Hindi voice: \(selectedVoiceId)")
+                voice = AVSpeechSynthesisVoice(identifier: selectedVoiceId)
+                if voice == nil {
+                    print("Warning: Could not create voice with identifier \(selectedVoiceId), using default")
+                    voice = AVSpeechSynthesisVoice(language: "hi-IN")
+                }
+            } else {
+                // Use default Hindi voice
+                print("Using default Hindi voice")
+                voice = AVSpeechSynthesisVoice(language: "hi-IN") ?? 
+                        AVSpeechSynthesisVoice(language: "hi") ?? 
+                        AVSpeechSynthesisVoice(language: "en-US")
+            }
+        } else if languageCode == "en-IN" || languageCode == "en-US" || languageCode.hasPrefix("en") {
+            // Check if user has selected a specific English voice
+            if let selectedVoiceId = UserDefaults.standard.string(forKey: "selectedEnglishVoice"),
+               selectedVoiceId != "default",
+               !selectedVoiceId.isEmpty {
+                print("Using selected English voice: \(selectedVoiceId)")
+                voice = AVSpeechSynthesisVoice(identifier: selectedVoiceId)
+                if voice == nil {
+                    print("Warning: Could not create voice with identifier \(selectedVoiceId), using default")
+                    voice = AVSpeechSynthesisVoice(language: "en-IN")
+                }
+            } else {
+                // Use default English voice (prefer Indian English)
+                print("Using default English voice")
+                voice = AVSpeechSynthesisVoice(language: "en-IN") ?? 
+                        AVSpeechSynthesisVoice(language: "en-US") ?? 
+                        AVSpeechSynthesisVoice()
+            }
         } else {
             // Generic fallback
             voice = AVSpeechSynthesisVoice(language: languageCode) ?? 
@@ -1283,9 +1482,8 @@ class VersesViewModel: NSObject, ObservableObject {
                     AVSpeechSynthesisVoice()
         }
         
-        // Cache the voice to avoid repeated initialization
         if let voice = voice {
-            cachedVoices[languageCode] = voice
+            print("Voice selected: \(voice.name) (\(voice.language))")
         }
         
         return voice
@@ -1598,6 +1796,9 @@ class VersesViewModel: NSObject, ObservableObject {
             isPlayingCompleteVersion = false
             completeSynthesizer.stopSpeaking(at: .immediate)
             currentCompleteVerse = nil
+            // Clear generic prayer state
+            genericPrayerVerses = []
+            genericPrayerCurrentIndex = 0
             
         case .verseDetail:
             isPlaying = false
@@ -1851,14 +2052,36 @@ extension VersesViewModel: AVSpeechSynthesizerDelegate {
             
             // Handle complete chalisa playback - only play Hindi parts
             if source == .completeView || self.isPlayingCompleteVersion {
-                // For complete chalisa, just move to the next verse
-                if self.playbackPosition.moveToNext(
-                    openingDohaCount: self.openingDoha.count,
-                    versesCount: self.verses.count
-                ) {
-                    self.playCurrentSection(using: .completeView)
+                print("Complete playback finished a verse. Generic prayer verses count: \(self.genericPrayerVerses.count)")
+                
+                // Check if we're playing a generic prayer (non-Chalisa)
+                if !self.genericPrayerVerses.isEmpty {
+                    print("Generic prayer playback: current index \(self.genericPrayerCurrentIndex) of \(self.genericPrayerVerses.count)")
+                    // Generic prayer playback: move to next verse
+                    self.genericPrayerCurrentIndex += 1
+                    print("Incremented to index \(self.genericPrayerCurrentIndex)")
+                    
+                    if self.genericPrayerCurrentIndex < self.genericPrayerVerses.count {
+                        print("Playing next verse at index \(self.genericPrayerCurrentIndex)")
+                        self.playGenericPrayerVerse(using: .completeView)
+                    } else {
+                        // Finished all verses
+                        print("Finished all \(self.genericPrayerVerses.count) verses, stopping")
+                        self.stopAudio(for: .completeView)
+                        self.genericPrayerVerses = []
+                        self.genericPrayerCurrentIndex = 0
+                    }
                 } else {
-                    self.stopAudio(for: .completeView)
+                    print("Hanuman Chalisa playback")
+                    // Hanuman Chalisa playback: use existing logic
+                    if self.playbackPosition.moveToNext(
+                        openingDohaCount: self.openingDoha.count,
+                        versesCount: self.verses.count
+                    ) {
+                        self.playCurrentSection(using: .completeView)
+                    } else {
+                        self.stopAudio(for: .completeView)
+                    }
                 }
                 return
             }

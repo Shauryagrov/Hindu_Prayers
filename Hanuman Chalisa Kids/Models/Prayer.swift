@@ -69,11 +69,14 @@ struct Prayer: Identifiable, Codable, Hashable {
     /// Whether the user has completed this prayer
     var hasCompleted: Bool = false
     
+    /// Additional information about the prayer (history, significance, how to chant, benefits, etc.)
+    var aboutInfo: String?
+    
     /// CodingKeys to handle UUID
     enum CodingKeys: String, CodingKey {
         case title, titleHindi, type, category, description, iconName
         case verses, openingVerses, closingVerses
-        case hasQuiz, hasCompletePlayback, isBookmarked, hasCompleted
+        case hasQuiz, hasCompletePlayback, isBookmarked, hasCompleted, aboutInfo
     }
     
     init(
@@ -89,7 +92,8 @@ struct Prayer: Identifiable, Codable, Hashable {
         hasQuiz: Bool = false,
         hasCompletePlayback: Bool = true,
         isBookmarked: Bool = false,
-        hasCompleted: Bool = false
+        hasCompleted: Bool = false,
+        aboutInfo: String? = nil
     ) {
         self.title = title
         self.titleHindi = titleHindi
@@ -104,6 +108,7 @@ struct Prayer: Identifiable, Codable, Hashable {
         self.hasCompletePlayback = hasCompletePlayback
         self.isBookmarked = isBookmarked
         self.hasCompleted = hasCompleted
+        self.aboutInfo = aboutInfo
     }
     
     // Implement Hashable

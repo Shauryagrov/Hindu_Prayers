@@ -27,6 +27,9 @@ struct Verse: Identifiable, Codable, Hashable {
     /// Filename for the verse's audio recording
     let audioFileName: String
     
+    /// English transliteration (phonetic spelling) to help learn Hindi script
+    let transliteration: String?
+    
     /// Whether the user has bookmarked this verse
     var isBookmarked: Bool = false
     
@@ -35,7 +38,7 @@ struct Verse: Identifiable, Codable, Hashable {
     
     // Add CodingKeys to handle UUID
     enum CodingKeys: String, CodingKey {
-        case number, text, meaning, simpleTranslation, explanation, audioFileName, isBookmarked, hasCompleted
+        case number, text, meaning, simpleTranslation, explanation, audioFileName, transliteration, isBookmarked, hasCompleted
     }
     
     // Initialize with default values for mutable properties
@@ -45,6 +48,7 @@ struct Verse: Identifiable, Codable, Hashable {
          simpleTranslation: String, 
          explanation: String, 
          audioFileName: String,
+         transliteration: String? = nil,
          isBookmarked: Bool = false,
          hasCompleted: Bool = false) {
         guard !text.isEmpty, !meaning.isEmpty, !explanation.isEmpty else {
@@ -57,6 +61,7 @@ struct Verse: Identifiable, Codable, Hashable {
         self.simpleTranslation = simpleTranslation
         self.explanation = explanation
         self.audioFileName = audioFileName
+        self.transliteration = transliteration
         self.isBookmarked = isBookmarked
         self.hasCompleted = hasCompleted
     }

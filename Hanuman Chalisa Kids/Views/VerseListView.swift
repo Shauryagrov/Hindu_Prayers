@@ -345,9 +345,9 @@ private struct VersesList: View {
                 // Closing Doha section - pass navigationPath
                 ClosingDohaSection(verse: viewModel.sections[2].verses[0], navigationPath: $navigationPath)
                 
-                // Bottom spacing
+                // Bottom spacing for comfortable scrolling
                 Color.clear
-                    .frame(height: 60)
+                    .frame(height: 80)
                     .listRowBackground(Color.clear)
             }
             .listStyle(PlainListStyle())

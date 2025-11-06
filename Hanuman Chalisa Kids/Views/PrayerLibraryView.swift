@@ -173,6 +173,7 @@ private struct PrayerCard: View {
     let prayer: Prayer
     @ObservedObject var libraryViewModel: PrayerLibraryViewModel
     @State private var isBookmarked: Bool
+    @State private var showingInfo = false
     
     init(prayer: Prayer, libraryViewModel: PrayerLibraryViewModel) {
         self.prayer = prayer
@@ -183,81 +184,116 @@ private struct PrayerCard: View {
     var body: some View {
         ZStack(alignment: .topTrailing) {
             // Main card content - tappable via NavigationLink
-            VStack(alignment: .leading, spacing: 12) {
-                // Header with icon
-                HStack {
-                    // Icon placeholder (will use actual icons later)
-                    Image(systemName: iconForPrayer(prayer))
-                        .font(.title)
-                        .foregroundColor(.orange)
-                        .frame(width: 40, height: 40)
-                        .background(Color.orange.opacity(0.1))
-                        .clipShape(Circle())
+            VStack(alignment: .leading, spacing: 16) {
+                // Icon
+                Image(systemName: iconForPrayer(prayer))
+                    .font(.system(size: 32, weight: .medium))
+                    .foregroundStyle(.orange.gradient)
+                    .frame(width: 56, height: 56)
+                    .background(
+                        Circle()
+                            .fill(.orange.opacity(0.12))
+                    )
+                
+                // Title and type
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(prayer.displayTitle)
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundColor(.primary)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.9)
+                        .accessibilityIdentifier("prayer_title_\(prayer.title)")
                     
-                    Spacer()
+                    // Type with subtle styling
+                    Text(prayer.type.rawValue.uppercased())
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(.orange)
+                        .tracking(0.6)
                 }
-                
-                // Title
-                Text(prayer.displayTitle)
-                    .font(.headline)
-                    .foregroundColor(.primary)
-                    .lineLimit(2)
-                    .accessibilityIdentifier("prayer_title_\(prayer.title)")
-                
-                // Type badge
-                Text(prayer.type.rawValue)
-                    .font(.caption)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.orange)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(Color.orange.opacity(0.1))
-                    .cornerRadius(8)
-                
-                // Description
-                Text(prayer.description)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .lineLimit(2)
                 
                 Spacer()
                 
-                // Verse count
-                HStack {
-                    Image(systemName: "text.alignleft")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    Text("\(prayer.totalVerses) verses")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                // Bottom info row
+                HStack(alignment: .center, spacing: 12) {
+                    // Verse count - primary info
+                    HStack(spacing: 4) {
+                        Image(systemName: "text.alignleft")
+                            .font(.system(size: 13))
+                            .foregroundColor(.secondary)
+                        Text("\(prayer.totalVerses)")
+                            .font(.system(size: 15, weight: .medium))
+                            .foregroundColor(.primary)
+                    }
+                    
+                    Spacer()
+                    
+                    // Info button - if available
+                    if prayer.aboutInfo != nil {
+                        Button(action: {
+                            showingInfo = true
+                        }) {
+                            Image(systemName: "info.circle.fill")
+                                .font(.system(size: 20))
+                                .foregroundStyle(.orange)
+                                .symbolRenderingMode(.hierarchical)
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                        .frame(width: 44, height: 44) // Proper touch target
+                        .contentShape(Rectangle())
+                        .accessibilityIdentifier("info_button_\(prayer.id.uuidString)")
+                        .accessibilityLabel("Learn more about \(prayer.title)")
+                    }
                 }
             }
-            .padding()
-            .frame(height: 180)
-            .background(Color(.systemBackground))
-            .cornerRadius(12)
-            .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 2)
+            .padding(16)
+            .frame(height: 200)
+            .background(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(Color(.systemBackground))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .strokeBorder(Color(.systemGray5), lineWidth: 0.5)
+            )
+            .shadow(color: Color.black.opacity(0.06), radius: 8, x: 0, y: 2)
+            .shadow(color: Color.black.opacity(0.04), radius: 2, x: 0, y: 1)
             
             // Bookmark button overlay - doesn't block NavigationLink
             Button(action: {
-                libraryViewModel.toggleBookmark(for: prayer)
-                isBookmarked.toggle()
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                    libraryViewModel.toggleBookmark(for: prayer)
+                    isBookmarked.toggle()
+                }
             }) {
                 Image(systemName: isBookmarked ? "bookmark.fill" : "bookmark")
-                    .foregroundColor(isBookmarked ? .orange : .gray)
-                    .padding(8)
-                    .background(Color(.systemBackground))
-                    .clipShape(Circle())
-                    .shadow(color: Color.black.opacity(0.1), radius: 2, x: 0, y: 1)
+                    .font(.system(size: 18, weight: .medium))
+                    .foregroundStyle(isBookmarked ? .orange : Color(.systemGray3))
+                    .frame(width: 44, height: 44) // Proper touch target
+                    .background(
+                        Circle()
+                            .fill(.ultraThinMaterial)
+                    )
+                    .contentShape(Circle())
             }
             .buttonStyle(PlainButtonStyle())
-            .padding(8)
+            .padding(12)
             .accessibilityIdentifier("bookmark_button_\(prayer.id.uuidString)")
-            .accessibilityLabel(isBookmarked ? "Bookmarked" : "Not bookmarked")
+            .accessibilityLabel(isBookmarked ? "Remove bookmark" : "Add bookmark")
+            .accessibilityHint(isBookmarked ? "Double tap to remove from bookmarks" : "Double tap to add to bookmarks")
+        }
+        .sheet(isPresented: $showingInfo) {
+            PrayerInfoView(prayer: prayer)
         }
     }
     
     private func iconForPrayer(_ prayer: Prayer) -> String {
+        // Use custom icon if specified
+        if let customIcon = prayer.iconName, customIcon.contains(".") {
+            // SF Symbol icon (contains a dot like "sun.max.fill")
+            return customIcon
+        }
+        
+        // Otherwise use category-based icon
         switch prayer.category {
         case .hanuman:
             return "figure.walk"
