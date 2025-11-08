@@ -1,47 +1,222 @@
 import SwiftUI
 
+// MARK: - Library Navigation Helpers
+private enum LibraryPlaybackMode: String, CaseIterable, Identifiable {
+    case verses
+    case complete
+    
+    var id: String { rawValue }
+    
+    var label: String {
+        switch self {
+        case .verses:
+            return "Verse by Verse"
+        case .complete:
+            return "Complete Playback"
+        }
+    }
+    
+    var accessibilityHint: String {
+        switch self {
+        case .verses:
+            return "Browse individual verses for each prayer"
+        case .complete:
+            return "Play the full prayer without navigating into verses"
+        }
+    }
+}
+
+private enum LibraryDestination: Hashable {
+    case prayer(Prayer)
+    case complete(Prayer)
+}
+
+// MARK: - Blessing Progress Tracking
+@MainActor
+final class BlessingProgressStore: ObservableObject {
+    static let shared = BlessingProgressStore()
+    
+    struct PrayerSummary: Identifiable, Hashable {
+        let id: String
+        let title: String
+        let displayTitle: String
+        let iconName: String
+        
+        init(prayer: Prayer) {
+            self.id = prayer.title
+            self.title = prayer.title
+            self.displayTitle = prayer.displayTitle
+            self.iconName = prayer.preferredIconName
+        }
+    }
+    
+    private let storageKey = "completedPrayerTitles"
+    private let verseProgressKey = "completedPrayerVerses"
+    private let defaults: UserDefaults
+    
+    @Published private(set) var exploredPrayerTitles: Set<String>
+    @Published private(set) var availablePrayerSummaries: [PrayerSummary]
+    @Published private(set) var completedVerseNumbers: [String: Set<Int>]
+    
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+        if let stored = defaults.array(forKey: storageKey) as? [String] {
+            self.exploredPrayerTitles = Set(stored)
+        } else {
+            self.exploredPrayerTitles = []
+        }
+        
+        if let storedMap = defaults.dictionary(forKey: verseProgressKey) as? [String: [Int]] {
+            self.completedVerseNumbers = storedMap.mapValues { Set($0) }
+        } else {
+            self.completedVerseNumbers = [:]
+        }
+        
+        self.availablePrayerSummaries = []
+    }
+    
+    func registerAvailablePrayers(_ prayers: [Prayer]) {
+        availablePrayerSummaries = prayers.map { PrayerSummary(prayer: $0) }
+        let availableTitles = Set(availablePrayerSummaries.map { $0.title })
+        exploredPrayerTitles = exploredPrayerTitles.intersection(availableTitles)
+        completedVerseNumbers = completedVerseNumbers.filter { availableTitles.contains($0.key) }
+        
+        for prayer in prayers {
+            if let set = completedVerseNumbers[prayer.title], set.count >= prayer.totalVerses {
+                exploredPrayerTitles.insert(prayer.title)
+            }
+        }
+        
+        persist()
+    }
+    
+    func markPrayerExplored(_ prayer: Prayer) {
+        guard !exploredPrayerTitles.contains(prayer.title) else { return }
+        exploredPrayerTitles.insert(prayer.title)
+        persist()
+    }
+    
+    func isPrayerExplored(title: String) -> Bool {
+        exploredPrayerTitles.contains(title)
+    }
+    
+    func recordVerse(_ verse: Verse, in prayer: Prayer) {
+        var set = completedVerseNumbers[prayer.title] ?? []
+        let inserted = set.insert(verse.number).inserted
+        if inserted {
+            completedVerseNumbers[prayer.title] = set
+            persist()
+        } else {
+            completedVerseNumbers[prayer.title] = set
+        }
+        
+        if set.count >= prayer.totalVerses {
+            markPrayerExplored(prayer)
+        }
+    }
+    
+    var totalPrayers: Int {
+        availablePrayerSummaries.count
+    }
+    
+    var exploredPrayerCount: Int {
+        exploredPrayerTitles.intersection(Set(availablePrayerSummaries.map { $0.title })).count
+    }
+    
+    private func persist() {
+        defaults.set(Array(exploredPrayerTitles), forKey: storageKey)
+        let dict = completedVerseNumbers.mapValues { Array($0) }
+        defaults.set(dict, forKey: verseProgressKey)
+    }
+}
+
 /// View that displays all available prayers in a library/grid format
 /// This will eventually become the home screen for the multi-prayer app
 struct PrayerLibraryView: View {
     @StateObject private var libraryViewModel = PrayerLibraryViewModel()
+    @EnvironmentObject private var blessingProgress: BlessingProgressStore
     @State private var searchText = ""
     @State private var selectedCategory: PrayerCategory? = nil
     @State private var selectedType: PrayerType? = nil
     @State private var navigationPath = NavigationPath()
     @EnvironmentObject var versesViewModel: VersesViewModel
+    @EnvironmentObject var prayerContext: CurrentPrayerContext
+    @Environment(\.colorScheme) private var colorScheme
+    @State private var playbackMode: LibraryPlaybackMode = .verses
+    
+    private var backgroundColor: Color {
+        colorScheme == .dark ? AppColors.nightBackground : AppColors.warmWhite
+    }
     
     var body: some View {
         NavigationStack(path: $navigationPath) {
-            VStack(spacing: 0) {
-                // Search and filter bar
-                SearchAndFilterBar(
-                    searchText: $searchText,
-                    selectedCategory: $selectedCategory,
-                    selectedType: $selectedType,
-                    libraryViewModel: libraryViewModel
-                )
-                
-                // Content
-                if libraryViewModel.filteredPrayers.isEmpty {
-                    EmptyLibraryView()
-                } else {
-                    PrayerGridView(
-                        prayers: libraryViewModel.filteredPrayers,
+            ZStack {
+                backgroundColor
+                    .ignoresSafeArea()
+                VStack(spacing: 0) {
+                    // Search and filter bar
+                    SearchAndFilterBar(
+                        searchText: $searchText,
+                        selectedCategory: $selectedCategory,
+                        selectedType: $selectedType,
                         libraryViewModel: libraryViewModel
                     )
+                    
+                    PlaybackModeToggle(playbackMode: $playbackMode)
+                        .padding(.horizontal, 20)
+                        .padding(.top, 12)
+                        .padding(.bottom, 4)
+                    
+                    // Content
+                    if libraryViewModel.filteredPrayers.isEmpty {
+                        EmptyLibraryView()
+                    } else {
+                        PrayerGridView(
+                            prayers: libraryViewModel.filteredPrayers,
+                            libraryViewModel: libraryViewModel,
+                            playbackMode: playbackMode
+                        )
+                    }
                 }
             }
             .navigationTitle("Library")
             .navigationBarTitleDisplayMode(.large)
-            .navigationDestination(for: Prayer.self) { prayer in
-                // Special handling for Hanuman Chalisa - use existing VerseListView
-                if prayer.type == .chalisa && prayer.title == "Hanuman Chalisa" {
-                    VerseListViewContent(navigationPath: $navigationPath)
-                        .environmentObject(versesViewModel)
-                } else {
-                    // Generic prayer detail view (handles its own verse navigation)
-                    PrayerDetailView(prayer: prayer, navigationPath: $navigationPath)
-                        .environmentObject(versesViewModel)
+            .navigationDestination(for: LibraryDestination.self) { destination in
+                switch destination {
+                case .prayer(let prayer):
+                    if prayer.type == .chalisa && prayer.title == "Hanuman Chalisa" {
+                        VerseListViewContent(navigationPath: $navigationPath)
+                            .environmentObject(versesViewModel)
+                            .environmentObject(prayerContext)
+                            .environmentObject(blessingProgress)
+                    } else {
+                        PrayerDetailView(prayer: prayer, navigationPath: $navigationPath)
+                            .environmentObject(versesViewModel)
+                            .environmentObject(prayerContext)
+                            .environmentObject(blessingProgress)
+                    }
+                case .complete(let prayer):
+                    if prayer.type == .chalisa && prayer.title == "Hanuman Chalisa" {
+                        CompleteChalisaView()
+                            .environmentObject(versesViewModel)
+                            .onAppear {
+                                prayerContext.setCurrentPrayer(prayer)
+                            }
+                            .onDisappear {
+                                prayerContext.clearCurrentPrayer()
+                                versesViewModel.stopAllAudio()
+                            }
+                    } else {
+                        GenericCompletePlaybackView(prayer: prayer)
+                            .environmentObject(versesViewModel)
+                            .onAppear {
+                                prayerContext.setCurrentPrayer(prayer)
+                            }
+                            .onDisappear {
+                                prayerContext.clearCurrentPrayer()
+                                versesViewModel.stopAllAudio()
+                            }
+                    }
                 }
             }
             .onAppear {
@@ -49,6 +224,7 @@ struct PrayerLibraryView: View {
                 libraryViewModel.searchText = searchText
                 libraryViewModel.selectedCategory = selectedCategory
                 libraryViewModel.selectedType = selectedType
+                blessingProgress.registerAvailablePrayers(libraryViewModel.prayers)
             }
             .onChange(of: searchText) { _, newValue in
                 libraryViewModel.searchText = newValue
@@ -63,19 +239,294 @@ struct PrayerLibraryView: View {
     }
 }
 
+// MARK: - Blessings progress card
+struct BlessingsProgressCard: View {
+    @EnvironmentObject var blessingProgress: BlessingProgressStore
+    @Environment(\.colorScheme) private var colorScheme
+    @ObservedObject var libraryViewModel: PrayerLibraryViewModel
+    let onSelectPrayer: (Prayer) -> Void
+    
+    private var summaries: [BlessingProgressStore.PrayerSummary] {
+        blessingProgress.availablePrayerSummaries
+    }
+    
+    private var cardBackground: Color {
+        colorScheme == .dark ? AppColors.nightCard : AppColors.cream.opacity(0.96)
+    }
+    
+    private var accentColor: Color {
+        colorScheme == .dark ? AppColors.nightHighlight : AppColors.saffronDark
+    }
+    
+    private var subduedText: Color {
+        colorScheme == .dark ? AppColors.warmWhite.opacity(0.78) : AppColors.textSecondary
+    }
+    
+    private var exploredCount: Int {
+        blessingProgress.exploredPrayerCount
+    }
+    
+    private var totalCount: Int {
+        max(blessingProgress.totalPrayers, 1)
+    }
+    
+    var body: some View {
+        if summaries.isEmpty {
+            EmptyView()
+        } else {
+            VStack(alignment: .leading, spacing: 16) {
+                HStack {
+                    Label {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Blessings Earned")
+                                .font(.system(size: 18, weight: .semibold, design: .rounded))
+                                .foregroundColor(accentColor)
+                            
+                            Text("Explore every prayer to unlock them all.")
+                                .font(.system(size: 14, weight: .medium, design: .rounded))
+                                .foregroundColor(subduedText)
+                        }
+                    } icon: {
+                        ZStack {
+                            Circle()
+                                .fill(accentColor.opacity(0.18))
+                                .frame(width: 40, height: 40)
+                            Image(systemName: "sparkles")
+                                .font(.system(size: 18, weight: .semibold))
+                                .foregroundColor(accentColor)
+                        }
+                    }
+                    
+                    Spacer()
+                    
+                    Text("\(exploredCount) / \(totalCount)")
+                        .font(.system(size: 16, weight: .semibold, design: .rounded))
+                        .foregroundColor(accentColor)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(
+                            Capsule()
+                                .fill(accentColor.opacity(0.12))
+                        )
+                }
+                
+                ProgressView(value: Double(exploredCount), total: Double(totalCount))
+                    .tint(accentColor)
+                    .accentColor(accentColor)
+                    .scaleEffect(x: 1, y: 1.2, anchor: .center)
+                
+                HStack(spacing: 16) {
+                    ForEach(summaries.prefix(5)) { summary in
+                        Button {
+                            if let prayer = libraryViewModel.prayers.first(where: { $0.title == summary.title }) {
+                                onSelectPrayer(prayer)
+                            }
+                        } label: {
+                            VStack(spacing: 8) {
+                                ZStack(alignment: .bottomTrailing) {
+                                    Circle()
+                                        .fill(accentColor.opacity(0.08))
+                                        .frame(width: 48, height: 48)
+                                        .overlay(
+                                            Image(systemName: summary.iconName)
+                                                .font(.system(size: 20, weight: .semibold))
+                                                .foregroundColor(accentColor)
+                                        )
+                                    
+                                    if blessingProgress.isPrayerExplored(title: summary.title) {
+                                        Image(systemName: "checkmark.seal.fill")
+                                            .font(.system(size: 18, weight: .bold))
+                                            .foregroundStyle(accentColor, Color.white)
+                                            .offset(x: 4, y: 4)
+                                    }
+                                }
+                                
+                                Text(summary.displayTitle)
+                                    .font(.caption)
+                                    .fontWeight(.semibold)
+                                    .foregroundColor(colorScheme == .dark ? AppColors.warmWhite : AppColors.textPrimary)
+                                    .lineLimit(1)
+                                    .minimumScaleFactor(0.6)
+                            }
+                            .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+            .padding(20)
+            .background(
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .fill(cardBackground)
+                    .shadow(color: accentColor.opacity(colorScheme == .dark ? 0.25 : 0.12), radius: 18, x: 0, y: 12)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 22, style: .continuous)
+                            .stroke(accentColor.opacity(0.18), lineWidth: 1)
+                    )
+            )
+        }
+    }
+}
+
+struct BlessingsView: View {
+    @StateObject private var libraryViewModel = PrayerLibraryViewModel()
+    @EnvironmentObject private var blessingProgress: BlessingProgressStore
+    @Environment(\.colorScheme) private var colorScheme
+    @EnvironmentObject private var versesViewModel: VersesViewModel
+    @EnvironmentObject private var prayerContext: CurrentPrayerContext
+    @State private var navigationPath = NavigationPath()
+    @State private var showingWish = false
+    
+    private var backgroundColor: Color {
+        colorScheme == .dark ? AppColors.nightBackground : AppColors.warmWhite
+    }
+    
+    private var emptyStateText: String {
+        "Start exploring prayers from the library to earn your first blessing."
+    }
+    
+    private func completedCount(for summary: BlessingProgressStore.PrayerSummary) -> Int {
+        blessingProgress.completedVerseNumbers[summary.title]?.count ?? 0
+    }
+    
+    private func totalVerses(for summary: BlessingProgressStore.PrayerSummary) -> Int {
+        libraryViewModel.prayers.first(where: { $0.title == summary.title })?.totalVerses ?? 0
+    }
+    
+    var body: some View {
+        NavigationStack(path: $navigationPath) {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 24) {
+                    BlessingsProgressCard(
+                        libraryViewModel: libraryViewModel,
+                        onSelectPrayer: { prayer in
+                            prayerContext.setCurrentPrayer(prayer)
+                            navigationPath.append(prayer)
+                        }
+                    )
+                    
+                    VStack(alignment: .leading, spacing: 16) {
+                        Text("Give & Grow")
+                            .font(.system(size: 20, weight: .semibold, design: .rounded))
+                            .foregroundColor(colorScheme == .dark ? AppColors.warmWhite : AppColors.saffronDark)
+                        
+                        VStack(spacing: 14) {
+                            PlaceholderActionCard(
+                                title: "Make a Wish",
+                                subtitle: "Whisper a hope to Hanuman ji. It disappears like incense smoke—just between you and the wind.",
+                                icon: "sparkles",
+                                action: {
+                                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                                    showingWish = true
+                                }
+                            )
+                            
+                            PlaceholderActionCard(
+                                title: "Support the Mission",
+                                subtitle: "Help keep the app growing and share a portion with temples that light the way.",
+                                icon: "hands.sparkles"
+                            )
+                        }
+                    }
+                    .padding(.horizontal, 4)
+                    
+                    if blessingProgress.availablePrayerSummaries.isEmpty {
+                        Text(emptyStateText)
+                            .font(.system(size: 16, weight: .medium, design: .rounded))
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.leading)
+                            .padding()
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(
+                                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                    .fill(colorScheme == .dark ? AppColors.nightCard : AppColors.cream.opacity(0.95))
+                            )
+                    } else {
+                        VStack(alignment: .leading, spacing: 16) {
+                            Text("Blessing Trail")
+                                .font(.system(size: 20, weight: .semibold, design: .rounded))
+                                .foregroundColor(colorScheme == .dark ? AppColors.warmWhite : AppColors.saffronDark)
+                            
+                            LazyVStack(spacing: 14) {
+                                ForEach(blessingProgress.availablePrayerSummaries) { summary in
+                                    Button {
+                                        if let prayer = libraryViewModel.prayers.first(where: { $0.title == summary.title }) {
+                                            prayerContext.setCurrentPrayer(prayer)
+                                            navigationPath.append(prayer)
+                                        }
+                                    } label: {
+                                        BlessingSummaryRow(
+                                            summary: summary,
+                                            unlocked: blessingProgress.isPrayerExplored(title: summary.title),
+                                            completedCount: completedCount(for: summary),
+                                            totalVerses: totalVerses(for: summary)
+                                        )
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            }
+                        }
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 28)
+                .padding(.bottom, 40)
+            }
+            .background(backgroundColor)
+            .navigationTitle("Blessings")
+            .navigationBarTitleDisplayMode(.large)
+            .onAppear {
+                libraryViewModel.searchText = ""
+                blessingProgress.registerAvailablePrayers(libraryViewModel.prayers)
+            }
+            .navigationDestination(for: Prayer.self) { prayer in
+                if prayer.type == .chalisa && prayer.title == "Hanuman Chalisa" {
+                    VerseListViewContent(navigationPath: $navigationPath)
+                        .environmentObject(versesViewModel)
+                        .environmentObject(prayerContext)
+                        .environmentObject(blessingProgress)
+                } else {
+                    PrayerDetailView(prayer: prayer, navigationPath: $navigationPath)
+                        .environmentObject(versesViewModel)
+                        .environmentObject(prayerContext)
+                        .environmentObject(blessingProgress)
+                }
+            }
+        }
+        .background(backgroundColor.ignoresSafeArea())
+        .sheet(isPresented: $showingWish) {
+            WishComposerView {
+                UIImpactFeedbackGenerator(style: .soft).impactOccurred()
+            }
+            .presentationDetents([.fraction(0.6)])
+            .presentationCornerRadius(28)
+            .presentationDragIndicator(.visible)
+        }
+    }
+}
+
 // MARK: - Search and Filter Bar
 private struct SearchAndFilterBar: View {
     @Binding var searchText: String
     @Binding var selectedCategory: PrayerCategory?
     @Binding var selectedType: PrayerType?
     @ObservedObject var libraryViewModel: PrayerLibraryViewModel
+    @Environment(\.colorScheme) private var colorScheme
+    
+    private var panelBackground: Color {
+        colorScheme == .dark ? AppColors.nightSurface : AppColors.warmWhite
+    }
+    
+    private var fieldBackground: Color {
+        colorScheme == .dark ? AppColors.nightCard : AppColors.cream
+    }
     
     var body: some View {
         VStack(spacing: 12) {
             // Search bar
             HStack {
                 Image(systemName: "magnifyingglass")
-                    .foregroundColor(.gray)
+                    .foregroundStyle(.secondary)
                 
                 TextField("Search prayers...", text: $searchText)
                     .textFieldStyle(.plain)
@@ -85,13 +536,13 @@ private struct SearchAndFilterBar: View {
                         searchText = ""
                     }) {
                         Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(.gray)
+                            .foregroundStyle(.secondary)
                     }
                 }
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
-            .background(Color(.systemGray6))
+            .background(fieldBackground)
             .cornerRadius(10)
             
             // Filter chips
@@ -104,7 +555,7 @@ private struct SearchAndFilterBar: View {
                         action: { selectedCategory = nil }
                     )
                     
-                    ForEach(PrayerCategory.allCases, id: \.self) { category in
+                    ForEach(PrayerCategory.allCases.filter { $0 == .hanuman || $0 == .general }, id: \.self) { category in
                         FilterChip(
                             title: category.rawValue,
                             isSelected: selectedCategory == category,
@@ -116,9 +567,31 @@ private struct SearchAndFilterBar: View {
                 }
                 .padding(.horizontal)
             }
+            
+            // Type filters (restrict to available types)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 10) {
+                    FilterChip(
+                        title: "All Types",
+                        isSelected: selectedType == nil,
+                        action: { selectedType = nil }
+                    )
+                    
+                    ForEach([PrayerType.chalisa, PrayerType.mantra], id: \.self) { type in
+                        FilterChip(
+                            title: type.rawValue,
+                            isSelected: selectedType == type,
+                            action: {
+                                selectedType = selectedType == type ? nil : type
+                            }
+                        )
+                    }
+                }
+                .padding(.horizontal)
+            }
         }
         .padding()
-        .background(Color(.systemBackground))
+        .background(panelBackground)
     }
 }
 
@@ -127,16 +600,31 @@ private struct FilterChip: View {
     let title: String
     let isSelected: Bool
     let action: () -> Void
+    @Environment(\.colorScheme) private var colorScheme
+    
+    private var chipBackground: Color {
+        if isSelected {
+            return AppColors.saffron
+        }
+        return colorScheme == .dark ? AppColors.nightCard : AppColors.cream
+    }
+    
+    private var chipForeground: Color {
+        if isSelected {
+            return .white
+        }
+        return colorScheme == .dark ? AppColors.lightSaffron : .primary
+    }
     
     var body: some View {
         Button(action: action) {
             Text(title)
                 .font(.subheadline)
                 .fontWeight(isSelected ? .semibold : .regular)
-                .foregroundColor(isSelected ? .white : .primary)
+                .foregroundColor(chipForeground)
                 .padding(.horizontal, 16)
                 .padding(.vertical, 8)
-                .background(isSelected ? Color.orange : Color(.systemGray5))
+                .background(chipBackground)
                 .cornerRadius(20)
         }
     }
@@ -146,6 +634,7 @@ private struct FilterChip: View {
 private struct PrayerGridView: View {
     let prayers: [Prayer]
     @ObservedObject var libraryViewModel: PrayerLibraryViewModel
+    let playbackMode: LibraryPlaybackMode
     
     let columns = [
         GridItem(.flexible(), spacing: 16),
@@ -156,15 +645,40 @@ private struct PrayerGridView: View {
         ScrollView {
             LazyVGrid(columns: columns, spacing: 16) {
                 ForEach(prayers) { prayer in
-                    NavigationLink(value: prayer) {
-                        PrayerCard(prayer: prayer, libraryViewModel: libraryViewModel)
+                    NavigationLink(value: destination(for: prayer)) {
+                        PrayerCard(
+                            prayer: prayer,
+                            libraryViewModel: libraryViewModel,
+                            isCompleteMode: playbackMode == .complete && prayer.hasCompletePlayback
+                        )
                             .accessibilityIdentifier("prayer_card_\(prayer.id.uuidString)")
                     }
-                    .buttonStyle(PlainButtonStyle())
+                    .buttonStyle(PressableCardStyle())
                 }
             }
             .padding()
         }
+    }
+    
+    private func destination(for prayer: Prayer) -> LibraryDestination {
+        if playbackMode == .complete, prayer.hasCompletePlayback {
+            return .complete(prayer)
+        }
+        return .prayer(prayer)
+    }
+}
+
+private struct PressableCardStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.97 : 1)
+            .shadow(color: Color.black.opacity(configuration.isPressed ? 0.05 : 0.15), radius: configuration.isPressed ? 4 : 10, x: 0, y: configuration.isPressed ? 2 : 6)
+            .animation(.easeInOut(duration: 0.18), value: configuration.isPressed)
+            .onChange(of: configuration.isPressed) { _, newValue in
+                if newValue {
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                }
+            }
     }
 }
 
@@ -172,50 +686,95 @@ private struct PrayerGridView: View {
 private struct PrayerCard: View {
     let prayer: Prayer
     @ObservedObject var libraryViewModel: PrayerLibraryViewModel
-    @State private var isBookmarked: Bool
+    let isCompleteMode: Bool
     @State private var showingInfo = false
+    @Environment(\.colorScheme) private var colorScheme
     
-    init(prayer: Prayer, libraryViewModel: PrayerLibraryViewModel) {
+    private var cardBackground: Color {
+        if isCompleteMode {
+            return colorScheme == .dark ? AppColors.nightCard.opacity(0.92) : AppColors.cream.opacity(0.98)
+        }
+        return colorScheme == .dark ? AppColors.nightCard : AppColors.warmWhite
+    }
+    
+    private var borderColor: Color {
+        if isCompleteMode {
+            return colorScheme == .dark ? AppColors.saffron.opacity(0.45) : AppColors.saffron.opacity(0.4)
+        }
+        return colorScheme == .dark ? AppColors.nightHighlight : AppColors.gold
+    }
+    
+    private var accentCapsule: Color {
+        if isCompleteMode {
+            return colorScheme == .dark ? AppColors.saffron.opacity(0.22) : AppColors.saffron.opacity(0.18)
+        }
+        return colorScheme == .dark ? AppColors.nightHighlight.opacity(0.2) : AppColors.saffron.opacity(0.15)
+    }
+    
+    private var iconHalo: Color {
+        if isCompleteMode {
+            return colorScheme == .dark ? AppColors.saffron.opacity(0.28) : AppColors.saffron.opacity(0.24)
+        }
+        return colorScheme == .dark ? AppColors.nightHighlight.opacity(0.25) : AppColors.saffron.opacity(0.18)
+    }
+    
+    init(prayer: Prayer, libraryViewModel: PrayerLibraryViewModel, isCompleteMode: Bool) {
         self.prayer = prayer
         self.libraryViewModel = libraryViewModel
-        _isBookmarked = State(initialValue: prayer.isBookmarked)
+        self.isCompleteMode = isCompleteMode
     }
     
     var body: some View {
         ZStack(alignment: .topTrailing) {
             // Main card content - tappable via NavigationLink
-            VStack(alignment: .leading, spacing: 16) {
-                // Icon
-                Image(systemName: iconForPrayer(prayer))
-                    .font(.system(size: 32, weight: .medium))
-                    .foregroundStyle(.orange.gradient)
-                    .frame(width: 56, height: 56)
-                    .background(
-                        Circle()
-                            .fill(.orange.opacity(0.12))
-                    )
+            VStack(spacing: 18) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .fill(colorScheme == .dark ? AppColors.iconBackgroundDark : AppColors.iconBackgroundLight)
+                        .frame(width: 64, height: 64)
+                        .shadow(color: (colorScheme == .dark ? Color.black.opacity(0.35) : AppColors.gold.opacity(0.18)), radius: 10, x: 0, y: 6)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                .stroke(iconHalo.opacity(0.4), lineWidth: 1)
+                        )
+
+                    Circle()
+                        .fill(iconHalo)
+                        .frame(width: 42, height: 42)
+                        .overlay(
+                            Circle()
+                                .fill(AppColors.warmWhite.opacity(colorScheme == .dark ? 0.08 : 0.2))
+                        )
+                        .shadow(color: AppColors.gold.opacity(0.22), radius: 6, x: 0, y: 3)
+                        .overlay(
+                            Image(systemName: prayer.preferredIconName)
+                                .font(.system(size: 24, weight: .semibold))
+                                .foregroundStyle(AppGradients.saffronGold)
+                        )
+                }
+                .frame(width: 64, height: 64)
+                .padding(.top, 4)
                 
                 // Title and type
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(spacing: 10) {
                     Text(prayer.displayTitle)
                         .font(.system(size: 17, weight: .semibold))
                         .foregroundColor(.primary)
+                        .multilineTextAlignment(.center)
                         .lineLimit(2)
                         .minimumScaleFactor(0.9)
                         .accessibilityIdentifier("prayer_title_\(prayer.title)")
                     
-                    // Type with subtle styling
                     Text(prayer.type.rawValue.uppercased())
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundColor(.orange)
-                        .tracking(0.6)
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(AppGradients.saffronGold)
+                        .tracking(0.8)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 4)
+                        .background(Capsule().fill(accentCapsule))
                 }
                 
-                Spacer()
-                
-                // Bottom info row
-                HStack(alignment: .center, spacing: 12) {
-                    // Verse count - primary info
+                HStack {
                     HStack(spacing: 4) {
                         Image(systemName: "text.alignleft")
                             .font(.system(size: 13))
@@ -224,22 +783,17 @@ private struct PrayerCard: View {
                             .font(.system(size: 15, weight: .medium))
                             .foregroundColor(.primary)
                     }
-                    
                     Spacer()
-                    
-                    // Info button - if available
                     if prayer.aboutInfo != nil {
                         Button(action: {
                             showingInfo = true
                         }) {
                             Image(systemName: "info.circle.fill")
-                                .font(.system(size: 20))
-                                .foregroundStyle(.orange)
+                                .font(.system(size: 18))
+                                .foregroundStyle(AppGradients.saffronGold)
                                 .symbolRenderingMode(.hierarchical)
                         }
                         .buttonStyle(PlainButtonStyle())
-                        .frame(width: 44, height: 44) // Proper touch target
-                        .contentShape(Rectangle())
                         .accessibilityIdentifier("info_button_\(prayer.id.uuidString)")
                         .accessibilityLabel("Learn more about \(prayer.title)")
                     }
@@ -247,72 +801,14 @@ private struct PrayerCard: View {
             }
             .padding(16)
             .frame(height: 200)
+            .traditionalCard(backgroundColor: cardBackground, borderColor: borderColor)
             .background(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(Color(.systemBackground))
+                RoundedRectangle(cornerRadius: 24, style: .continuous)
+                    .fill(isCompleteMode ? AppColors.saffron.opacity(colorScheme == .dark ? 0.08 : 0.05) : Color.clear)
             )
-            .overlay(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .strokeBorder(Color(.systemGray5), lineWidth: 0.5)
-            )
-            .shadow(color: Color.black.opacity(0.06), radius: 8, x: 0, y: 2)
-            .shadow(color: Color.black.opacity(0.04), radius: 2, x: 0, y: 1)
-            
-            // Bookmark button overlay - doesn't block NavigationLink
-            Button(action: {
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-                    libraryViewModel.toggleBookmark(for: prayer)
-                    isBookmarked.toggle()
-                }
-            }) {
-                Image(systemName: isBookmarked ? "bookmark.fill" : "bookmark")
-                    .font(.system(size: 18, weight: .medium))
-                    .foregroundStyle(isBookmarked ? .orange : Color(.systemGray3))
-                    .frame(width: 44, height: 44) // Proper touch target
-                    .background(
-                        Circle()
-                            .fill(.ultraThinMaterial)
-                    )
-                    .contentShape(Circle())
-            }
-            .buttonStyle(PlainButtonStyle())
-            .padding(12)
-            .accessibilityIdentifier("bookmark_button_\(prayer.id.uuidString)")
-            .accessibilityLabel(isBookmarked ? "Remove bookmark" : "Add bookmark")
-            .accessibilityHint(isBookmarked ? "Double tap to remove from bookmarks" : "Double tap to add to bookmarks")
         }
         .sheet(isPresented: $showingInfo) {
             PrayerInfoView(prayer: prayer)
-        }
-    }
-    
-    private func iconForPrayer(_ prayer: Prayer) -> String {
-        // Use custom icon if specified
-        if let customIcon = prayer.iconName, customIcon.contains(".") {
-            // SF Symbol icon (contains a dot like "sun.max.fill")
-            return customIcon
-        }
-        
-        // Otherwise use category-based icon
-        switch prayer.category {
-        case .hanuman:
-            return "figure.walk"
-        case .laxmi:
-            return "sparkles"
-        case .shiva:
-            return "moon.stars"
-        case .vishnu:
-            return "sun.max"
-        case .ganesh:
-            return "star.fill"
-        case .durga:
-            return "shield.fill"
-        case .krishna:
-            return "music.note"
-        case .ram:
-            return "book.fill"
-        case .general:
-            return "book.closed.fill"
         }
     }
 }
@@ -341,7 +837,197 @@ private struct EmptyLibraryView: View {
     }
 }
 
+// MARK: - Playback Mode Toggle
+private struct PlaybackModeToggle: View {
+    @Binding var playbackMode: LibraryPlaybackMode
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Picker("Playback mode", selection: $playbackMode) {
+                ForEach(LibraryPlaybackMode.allCases) { mode in
+                    Text(mode.label)
+                        .tag(mode)
+                }
+            }
+            .pickerStyle(.segmented)
+            .accessibilityLabel("Playback mode")
+            .accessibilityHint(playbackMode.accessibilityHint)
+            
+            Text(playbackMode == .verses ? "Tap a prayer to explore verse by verse." : "Tap a prayer to start complete playback immediately.")
+                .font(.footnote)
+                .foregroundColor(.secondary)
+        }
+    }
+}
+
+// MARK: - Placeholder Action Card
+private struct PlaceholderActionCard: View {
+    let title: String
+    let subtitle: String
+    let icon: String
+    let action: (() -> Void)?
+    @Environment(\.colorScheme) private var colorScheme
+    
+    init(title: String, subtitle: String, icon: String, action: (() -> Void)? = nil) {
+        self.title = title
+        self.subtitle = subtitle
+        self.icon = icon
+        self.action = action
+    }
+    
+    private var background: Color {
+        colorScheme == .dark ? AppColors.nightCard : AppColors.warmWhite
+    }
+    
+    private var accent: Color {
+        colorScheme == .dark ? AppColors.saffron.opacity(0.4) : AppColors.saffron
+    }
+    
+    var body: some View {
+        Group {
+            if let action {
+                Button(action: action) {
+                    cardContent
+                }
+                .buttonStyle(PlainCardButtonStyle())
+            } else {
+                cardContent
+            }
+        }
+    }
+    
+    private var cardContent: some View {
+        HStack(alignment: .top, spacing: 16) {
+            ZStack {
+                Circle()
+                    .fill(accent.opacity(0.18))
+                    .frame(width: 46, height: 46)
+                Image(systemName: icon)
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundColor(accent)
+            }
+            
+            VStack(alignment: .leading, spacing: 6) {
+                Text(title)
+                    .font(.system(size: 17, weight: .semibold, design: .rounded))
+                    .foregroundColor(colorScheme == .dark ? AppColors.warmWhite : AppColors.textPrimary)
+                
+                Text(subtitle)
+                    .font(.system(size: 14, weight: .medium, design: .rounded))
+                    .foregroundColor(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            
+            Spacer()
+        }
+        .padding(18)
+        .background(
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .fill(background)
+                .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.35 : 0.08), radius: 10, x: 0, y: 6)
+        )
+    }
+}
+
+private struct PlainCardButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.97 : 1)
+            .opacity(configuration.isPressed ? 0.88 : 1)
+            .animation(.easeInOut(duration: 0.18), value: configuration.isPressed)
+    }
+}
+
 #Preview {
-    PrayerLibraryView()
+    PrayerLibraryPreviewContainer()
+}
+
+private struct PrayerLibraryPreviewContainer: View {
+    @StateObject private var store = BlessingProgressStore(defaults: UserDefaults())
+    
+    var body: some View {
+        PrayerLibraryView()
+            .environmentObject(VersesViewModel())
+            .environmentObject(CurrentPrayerContext.preview())
+            .environmentObject(store)
+    }
+}
+
+#Preview("Blessings View") {
+    BlessingsPreviewContainer()
+}
+
+private struct BlessingsPreviewContainer: View {
+    @StateObject private var store = BlessingProgressStore(defaults: UserDefaults())
+    
+    var body: some View {
+        BlessingsView()
+            .environmentObject(VersesViewModel())
+            .environmentObject(CurrentPrayerContext.preview())
+            .environmentObject(store)
+    }
+}
+
+private struct BlessingSummaryRow: View {
+    let summary: BlessingProgressStore.PrayerSummary
+    let unlocked: Bool
+    let completedCount: Int
+    let totalVerses: Int
+    @Environment(\.colorScheme) private var colorScheme
+    
+    private var remaining: Int {
+        max(totalVerses - completedCount, 0)
+    }
+    
+    private var progressLabel: String {
+        let verseLabel = totalVerses == 1 ? "verse" : "verses"
+        return "\(completedCount) / \(totalVerses) \(verseLabel)"
+    }
+    
+    private var remainingLabel: String {
+        if remaining <= 0 { return "Blessing unlocked" }
+        return remaining == 1 ? "1 to go" : "\(remaining) to go"
+    }
+    
+    var body: some View {
+        HStack(spacing: 16) {
+            ZStack {
+                Circle()
+                    .fill(unlocked ? AppColors.saffron.opacity(0.18) : AppColors.saffron.opacity(0.08))
+                    .frame(width: 52, height: 52)
+                Image(systemName: summary.iconName)
+                    .font(.system(size: 22, weight: .semibold))
+                    .foregroundColor(unlocked ? AppColors.saffron : AppColors.textSecondary)
+            }
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text(summary.displayTitle)
+                    .font(.system(size: 18, weight: .semibold, design: .rounded))
+                    .foregroundColor(colorScheme == .dark ? AppColors.warmWhite : AppColors.textPrimary)
+                
+                if remaining <= 0 {
+                    Text("Blessing unlocked")
+                        .font(.system(size: 14, weight: .medium, design: .rounded))
+                        .foregroundColor(AppColors.saffron)
+                } else {
+                    Text("\(progressLabel) • \(remainingLabel)")
+                        .font(.system(size: 14, weight: .medium, design: .rounded))
+                        .foregroundColor(.secondary)
+                }
+            }
+            
+            Spacer()
+            
+            Image(systemName: "chevron.right")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundColor(AppColors.saffron.opacity(0.8))
+        }
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .fill(colorScheme == .dark ? AppColors.nightCard : AppColors.warmWhite)
+                .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.35 : 0.08), radius: 10, x: 0, y: 6)
+        )
+    }
 }
 

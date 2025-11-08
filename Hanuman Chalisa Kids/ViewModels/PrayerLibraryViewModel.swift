@@ -35,13 +35,9 @@ class PrayerLibraryViewModel: ObservableObject {
         }
     }
     
-    /// Bookmarked prayers
-    @Published var bookmarkedPrayers: Set<UUID> = []
-    
     /// Initializer
     init() {
         loadPrayers()
-        loadBookmarks()
     }
     
     /// Load all prayers
@@ -63,7 +59,12 @@ class PrayerLibraryViewModel: ObservableObject {
         let gayatriMantra = createGayatriMantraPrayer()
         prayers.append(gayatriMantra)
         
+        // Add Hanuman Baan to the library
+        let hanumanBaan = createHanumanBaanPrayer()
+        prayers.append(hanumanBaan)
+        
         filteredPrayers = prayers
+        BlessingProgressStore.shared.registerAvailablePrayers(prayers)
     }
     
     /// Helper function to get transliteration for Hanuman Chalisa verses
@@ -159,7 +160,6 @@ class PrayerLibraryViewModel: ObservableObject {
                 explanation: verse.explanation,
                 audioFileName: verse.audioFileName,
                 transliteration: getChalisaTransliteration(for: verse.number),
-                isBookmarked: verse.isBookmarked,
                 hasCompleted: verse.hasCompleted
             )
         }
@@ -227,7 +227,6 @@ When you face a difficult test, a scary situation, or feel nervous, remember Han
             closingVerses: closingVerses,
             hasQuiz: true,
             hasCompletePlayback: true,
-            isBookmarked: false,
             hasCompleted: false,
             aboutInfo: chalisaAboutInfo
         )
@@ -431,9 +430,8 @@ Even if you're just starting, don't worry! Hanuman ji loves sincere devotion mor
             verses: aartiVerses,
             openingVerses: nil,
             closingVerses: nil,
-            hasQuiz: false,
+            hasQuiz: true,
             hasCompletePlayback: true,
-            isBookmarked: false,
             hasCompleted: false,
             aboutInfo: aartiAboutInfo
         )
@@ -446,37 +444,37 @@ Even if you're just starting, don't worry! Hanuman ji loves sincere devotion mor
         let gayatriVerses: [Verse] = [
             Verse(
                 number: 1,
-                text: "ॐ भूर्भुवः स्वः\nतत्सवितुर्वरेण्यं\nभर्गो देवस्य धीमहि\nधियो यो नः प्रचोदयात्",
-                meaning: "Om, the supreme reality pervading earth, space, and heaven. We meditate upon the glorious radiance of that divine Sun God. May He illuminate our minds and inspire our understanding.",
-                simpleTranslation: "Om, the supreme God is everywhere - on earth, in the sky, and in heaven. We think about the bright light of the Sun God. May that light make our minds bright and help us think good thoughts.",
-                explanation: "This is the Gayatri Mantra, one of the most special prayers in Hinduism. It's like asking God (represented as the Sun) to make our minds bright and smart, just like the sun lights up the world. The Sun gives light to everything, and we're asking for that light to come into our thoughts too!",
-                audioFileName: "gayatri_1",
-                transliteration: "Om Bhur Bhuva Swaha\nTat Savitur Varenyam\nBhargo Devasya Dheemahi\nDhiyo Yo Nah Prachodayat"
-            ),
-            Verse(
-                number: 2,
                 text: "ॐ भूर्भुवः स्वः",
-                meaning: "Om - the primordial sound of the universe\nBhur - the physical world (Earth)\nBhuva - the mental world (Space/Sky)\nSwaha - the spiritual world (Heaven)",
-                simpleTranslation: "Om is God's sound. Bhur means the Earth where we live. Bhuva means the sky and space. Swaha means heaven where gods live.",
-                explanation: "The first part of the mantra talks about three worlds. Earth is where we live and play. Sky is where birds fly and planes go. Heaven is where gods live. When we say Om, it's like connecting to all these worlds at once!",
-                audioFileName: "gayatri_2",
+                meaning: "Om is the primordial sound of the universe.\nBhur refers to the physical world (Earth).\nBhuva refers to the mental world (Space/Sky).\nSwaha refers to the spiritual world (Heaven).",
+                simpleTranslation: "Om is God's sound. Bhur is the Earth where we live. Bhuva is the sky and space. Swaha is the heavenly world where the gods live.",
+                explanation: "The mantra begins by naming the three realms we experience: Earth, Sky, and Heaven. Saying Om connects us to all of them at once, reminding us that divine energy is everywhere.",
+                audioFileName: "gayatri_1",
                 transliteration: "Om Bhur Bhuva Swaha"
             ),
             Verse(
+                number: 2,
+                text: "तत्सवितुर्वरेण्यं",
+                meaning: "Tat means 'that' supreme reality.\nSavitur refers to the Sun, the giver of life.\nVarenyam means most excellent and worthy of worship.",
+                simpleTranslation: "We think about that amazing Sun power that is so good and worthy of our respect.",
+                explanation: "Here we are focusing on the divine Sun energy that keeps everything alive. Just like sunlight helps plants grow, divine light helps our minds grow.",
+                audioFileName: "gayatri_2",
+                transliteration: "Tat Savitur Varenyam"
+            ),
+            Verse(
                 number: 3,
-                text: "तत्सवितुर्वरेण्यं भर्गो देवस्य धीमहि",
-                meaning: "Tat - That (supreme reality)\nSavitur - of the Sun, the giver of life\nVarenyam - most excellent, worthy of worship\nBhargo - radiance, effulgence, divine light\nDevasya - of the divine\nDheemahi - we meditate upon",
-                simpleTranslation: "That great Sun God who is excellent and worthy of worship - we think deeply about His beautiful, bright light.",
-                explanation: "Here we're thinking very carefully about God's light, just like how the Sun's light is so bright and beautiful. The Sun helps plants grow, keeps us warm, and makes everything bright. In the same way, God's light helps our minds grow and become better!",
+                text: "भर्गो देवस्य धीमहि",
+                meaning: "Bhargo means radiant divine light.\nDevasya means of the divine.\nDheemahi means we meditate upon.",
+                simpleTranslation: "We meditate on God's bright, beautiful light.",
+                explanation: "When we say this line, we picture the warm glow of the morning sun and invite that brightness into our hearts and minds.",
                 audioFileName: "gayatri_3",
-                transliteration: "Tat Savitur Varenyam Bhargo Devasya Dheemahi"
+                transliteration: "Bhargo Devasya Dheemahi"
             ),
             Verse(
                 number: 4,
                 text: "धियो यो नः प्रचोदयात्",
-                meaning: "Dhiyo - intellect, understanding, thoughts\nYo - who, which\nNah - our\nPrachodayat - may inspire, enlighten, guide",
-                simpleTranslation: "May that divine light inspire our minds, help us understand things better, and guide our thoughts in the right direction.",
-                explanation: "This is the most important part! We're asking God to help us think good thoughts, learn new things, and always choose what's right. It's like asking for a super smart brain that always makes good choices!",
+                meaning: "Dhiyo means intellect and thoughts.\nYo means who.\nNah means our.\nPrachodayat means may inspire or guide.",
+                simpleTranslation: "May that divine light guide our thoughts and make our minds smart and kind.",
+                explanation: "The mantra ends with a wish: that God's light will inspire us, help us make wise choices, and keep our thoughts bright and positive.",
                 audioFileName: "gayatri_4",
                 transliteration: "Dhiyo Yo Nah Prachodayat"
             )
@@ -525,11 +523,479 @@ When you chant this mantra regularly, amazing things happen! You'll find it easi
             verses: gayatriVerses,
             openingVerses: nil,
             closingVerses: nil,
-            hasQuiz: false,
+            hasQuiz: true,
             hasCompletePlayback: true,
-            isBookmarked: false,
             hasCompleted: false,
             aboutInfo: gayatriAboutInfo
+        )
+    }
+    
+    /// Create a Prayer object for Hanuman Baan (Bajrang Baan)
+    private func createHanumanBaanPrayer() -> Prayer {
+        // Hanuman Baan (Bajrang Baan) - A powerful protective prayer to Hanuman
+        // Composed by Goswami Tulsidas, this prayer is believed to provide protection and remove obstacles
+        
+        // Opening Doha
+        let openingVerses: [Verse] = [
+            Verse(
+                number: -1,
+                text: "निश्चय प्रेम प्रतीति ते, विनय करें संतान\nतेहि के कारज सकल शुभ, सिद्ध करें हनुमान",
+                meaning: "With firm determination, love and faith, when a devotee humbly prays, Hanuman fulfills all their auspicious wishes and grants success in all endeavors.",
+                simpleTranslation: "When we pray to Hanuman ji with true love, trust, and respect in our hearts, he helps us succeed in all good things we want to do.",
+                explanation: "This opening verse tells us that if we truly believe in Hanuman ji and pray with a loving heart, he will help us achieve all our good wishes and protect us from problems.",
+                audioFileName: "baan_opening",
+                transliteration: "Nishchay Prem Prateeti Te, Vinay Karen Santan\nTehi Ke Karaj Sakal Shubh, Siddh Karen Hanuman"
+            )
+        ]
+        
+        // Main verses (Complete traditional Bajrang Baan - 42 chaupais)
+        let baanVerses: [Verse] = [
+            Verse(
+                number: 1,
+                text: "बोलो तुम धन्य हनुमान",
+                meaning: "I say you are blessed, O Hanuman!",
+                simpleTranslation: "I call you blessed and great, Hanuman ji!",
+                explanation: "We start by praising Hanuman ji and telling him how special and blessed he is. Just like we appreciate someone when they help us, we're showing our respect to Hanuman ji.",
+                audioFileName: "baan_1",
+                transliteration: "Bolo Tum Dhanya Hanuman"
+            ),
+            Verse(
+                number: 2,
+                text: "अंजनि पुत्र महावीर बलवान",
+                meaning: "Son of Anjani, the great hero and mighty one.",
+                simpleTranslation: "You are Mother Anjani's son, a great hero, and very strong!",
+                explanation: "Hanuman ji's mother is Anjani. He is called 'Mahavir' which means great hero because he is incredibly strong and brave, just like a superhero!",
+                audioFileName: "baan_2",
+                transliteration: "Anjani Putra Mahavir Balwan"
+            ),
+            Verse(
+                number: 3,
+                text: "राम दूत नाम उच्चारा\nदासत दुःख दारुण दैत्य निवारा",
+                meaning: "Known as Ram's messenger. You remove the terrible sufferings of devotees and destroy demons.",
+                simpleTranslation: "You are Lord Ram's messenger. You take away the pain of people who worship you and protect them from bad things.",
+                explanation: "Hanuman ji works for Lord Ram and helps people. When someone is sad or in trouble, Hanuman ji comes to help them and keeps bad things away from them.",
+                audioFileName: "baan_3",
+                transliteration: "Ram Doot Naam Uchchara\nDasat Dukh Darun Daitya Nivara"
+            ),
+            Verse(
+                number: 4,
+                text: "दैत्य विदारण महा रुद्र\nबज्र से भी कठिन अंगा",
+                meaning: "Destroyer of demons, like great Rudra (Shiva). Your body is harder than a diamond (vajra).",
+                simpleTranslation: "You destroy bad demons like Lord Shiva does. Your body is even stronger than the hardest diamond!",
+                explanation: "Hanuman ji is so powerful that he can defeat any bad person or demon. His body is so strong that nothing can hurt him - it's stronger than even the hardest things we know, like diamonds!",
+                audioFileName: "baan_4",
+                transliteration: "Daitya Vidaran Maha Rudra\nBajra Se Bhi Kathin Anga"
+            ),
+            Verse(
+                number: 5,
+                text: "छोटो रूप हरि कीया\nकपि रूप धरा पर दीया",
+                meaning: "The Lord made you small in size and placed you on earth in the form of a monkey.",
+                simpleTranslation: "God made you in the form of a monkey and sent you to earth.",
+                explanation: "Even though Hanuman ji is so powerful, he looks like a monkey. This teaches us that we shouldn't judge anyone by how they look - what matters is the goodness and strength inside!",
+                audioFileName: "baan_5",
+                transliteration: "Chhoto Roop Hari Kiya\nKapi Roop Dhara Par Diya"
+            ),
+            Verse(
+                number: 6,
+                text: "माता अंजनि के नंदन\nशोभित कुंडल माय कान",
+                meaning: "Beloved son of Mother Anjani, with beautiful earrings adorning your ears.",
+                simpleTranslation: "You are Mother Anjani's dear son, and you wear lovely earrings in your ears.",
+                explanation: "Hanuman ji is his mother's beloved child, just like you are special to your mom and dad. He wears beautiful earrings that make him look even more wonderful!",
+                audioFileName: "baan_6",
+                transliteration: "Mata Anjani Ke Nandan\nShobhit Kundal Maya Kan"
+            ),
+            Verse(
+                number: 7,
+                text: "जलती चिता निकट जा के\nशमन बुलाया तुम नांय",
+                meaning: "Going near the burning pyre, you called out to the God of Death.",
+                simpleTranslation: "You went close to fire and called the God of Death, showing no fear.",
+                explanation: "This tells us about Hanuman ji's incredible bravery when he went to Lanka. He wasn't afraid of anything, not even fire! This shows us how to be courageous when facing difficult situations.",
+                audioFileName: "baan_7",
+                transliteration: "Jalti Chita Nikat Ja Ke\nShaman Bulaya Tum Naay"
+            ),
+            Verse(
+                number: 8,
+                text: "लंका को जारे करि ताकी\nसीता को मिले तुम जाय",
+                meaning: "You burned Lanka to ashes and went to meet Sita.",
+                simpleTranslation: "You set fire to the city of Lanka and then went to meet Mother Sita.",
+                explanation: "When demons tied fire to Hanuman ji's tail, he used it to burn their city! Then he went to find Mother Sita to give her Lord Ram's message. This shows how clever and brave Hanuman ji is!",
+                audioFileName: "baan_8",
+                transliteration: "Lanka Ko Jare Kari Taki\nSita Ko Mile Tum Jaay"
+            ),
+            Verse(
+                number: 9,
+                text: "देखि सीता को तुम चरनन लागे\nसीय रघुनंदन संदेश सुनाये",
+                meaning: "Seeing Sita, you bowed at her feet and delivered Lord Ram's message to her.",
+                simpleTranslation: "When you saw Mother Sita, you respectfully touched her feet and gave her Lord Ram's message.",
+                explanation: "Even though Hanuman ji is so powerful, he shows great respect to Mother Sita by bowing to her. He brings her a message from Lord Ram, which makes her very happy. This teaches us to be respectful to elders.",
+                audioFileName: "baan_9",
+                transliteration: "Dekhi Sita Ko Tum Charan Lage\nSiya Raghunandan Sandesh Sunaye"
+            ),
+            Verse(
+                number: 10,
+                text: "सीय सुदति सुनि तुम रघुनंदन\nरावन त्रसा थरथर कंपा",
+                meaning: "Hearing Sita's beautiful words, you returned to Ram. Ravana trembled in fear.",
+                simpleTranslation: "After listening to Mother Sita's words, you went back to Lord Ram. The demon king Ravana became very scared of you.",
+                explanation: "When Ravana saw how powerful Hanuman ji is, he became very frightened. This shows us that goodness and devotion always win over evil in the end.",
+                audioFileName: "baan_10",
+                transliteration: "Siya Sudati Suni Tum Raghunandan\nRavan Trasa Tharthar Kampa"
+            ),
+            Verse(
+                number: 11,
+                text: "लंका सो कोट समुद्र सी खाई\nजात पवनसुत बार न लाई",
+                meaning: "Though Lanka had mighty fortifications and was surrounded by the ocean, you, son of Wind, took no time in crossing it.",
+                simpleTranslation: "Even though Lanka was protected by big walls and surrounded by ocean, you crossed over very quickly without any delay.",
+                explanation: "The ocean is huge and Lanka was far away, but Hanuman ji flew across it very fast! When we have courage and determination like Hanuman ji, we can overcome big obstacles too.",
+                audioFileName: "baan_11",
+                transliteration: "Lanka So Kot Samudra Si Khai\nJat Pawansut Bar Na Lai"
+            ),
+            Verse(
+                number: 12,
+                text: "दुर्गम काज जगत के जेते\nसुगम अनुग्रह तुम्हरे तेते",
+                meaning: "All the difficult tasks in the world become easy with your grace and blessings.",
+                simpleTranslation: "When you bless us, even the hardest things become easy to do.",
+                explanation: "Sometimes we face really difficult homework or problems. But if we pray to Hanuman ji with a good heart, he helps us and makes those hard things easier! This is the power of his blessings.",
+                audioFileName: "baan_12",
+                transliteration: "Durgam Kaj Jagat Ke Jete\nSugam Anugraha Tumhre Tete"
+            ),
+            Verse(
+                number: 13,
+                text: "राम काज लीन्हे तुम्हारे\nसहस्र बदन तब तुम धारे",
+                meaning: "In the service of Ram's work, you assumed a form with thousand heads.",
+                simpleTranslation: "While helping Lord Ram, you took a special form with a thousand heads!",
+                explanation: "Hanuman ji can change his form to any size or shape! When Lord Ram needed special help, Hanuman ji became huge with many heads. This shows he can do anything to help those he loves.",
+                audioFileName: "baan_13",
+                transliteration: "Ram Kaj Linhey Tumhare\nSahastra Badan Tab Tum Dhare"
+            ),
+            Verse(
+                number: 14,
+                text: "लय उठाये जबहिं पहारा\nबज्र के बदन किए करारा",
+                meaning: "When you lifted the mountain, your face became as hard as a diamond.",
+                simpleTranslation: "When you picked up the whole mountain, your face became as strong as the hardest diamond.",
+                explanation: "When Lakshman ji got hurt in the war, Hanuman ji flew to the Himalayas and lifted an entire mountain to bring the healing herb! He is so strong that he could carry a mountain. This shows his great love and dedication.",
+                audioFileName: "baan_14",
+                transliteration: "Lay Uthaye Jabahi Pahara\nBajra Ke Badan Kiye Karara"
+            ),
+            Verse(
+                number: 15,
+                text: "जनकसुता हित निशि भारी\nराक्षस दल किन्हे तुम तारी",
+                meaning: "For Sita's sake, at night you crossed over the army of demons.",
+                simpleTranslation: "To help Mother Sita, you bravely crossed through the whole demon army at night.",
+                explanation: "Even though there were thousands of scary demons, Hanuman ji wasn't afraid. He went right through them all to help Mother Sita. This teaches us to be brave when helping others.",
+                audioFileName: "baan_15",
+                transliteration: "Janaksuta Hit Nishi Bhari\nRakshas Dal Kinhey Tum Tari"
+            ),
+            Verse(
+                number: 16,
+                text: "लंका को जार दिन्हि अकंपा\nराखेउ जो जासु सुत अकंपा",
+                meaning: "You mercilessly burnt Lanka, but spared only Vibhishana who was on Ram's side.",
+                simpleTranslation: "You set fire to Lanka without mercy, but you protected Vibhishana because he was good and loved Lord Ram.",
+                explanation: "When Hanuman ji burned Lanka, he made sure not to hurt Vibhishana, who was Ravana's brother but chose to help Lord Ram. This teaches us that good people should always be protected, even in difficult times.",
+                audioFileName: "baan_16",
+                transliteration: "Lanka Ko Jar Dinhi Akampa\nRakheu Jo Jasu Sut Akampa"
+            ),
+            Verse(
+                number: 17,
+                text: "जय हनुमन्त संत हितकारी\nसुनि लीजै प्रभु अरज हमारी",
+                meaning: "Hail Hanuman, friend of saints! O Lord, please listen to my humble prayer.",
+                simpleTranslation: "Victory to Hanuman ji, who helps good people! Please listen to my prayer, O Lord!",
+                explanation: "Hanuman ji is a true friend to all good people. When we pray to him with a sincere heart, he always listens and helps us. He especially loves to help those who are kind and good.",
+                audioFileName: "baan_17",
+                transliteration: "Jay Hanumant Sant Hitkari\nSuni Lije Prabhu Araj Hamari"
+            ),
+            Verse(
+                number: 18,
+                text: "जन के काज विलम्ब न कीजै\nआतुर दौरि महा सुख दीजै",
+                meaning: "Do not delay in helping your devotee. Rush quickly and bring great happiness.",
+                simpleTranslation: "Please don't wait to help us. Come running quickly and make us happy!",
+                explanation: "This verse reminds us that Hanuman ji doesn't waste time when his devotees need help. He rushes to help immediately, like when you run to help a friend who needs you. This teaches us to be quick in helping others too!",
+                audioFileName: "baan_18",
+                transliteration: "Jan Ke Kaj Vilamb Na Kije\nAtur Dori Maha Sukh Dije"
+            ),
+            Verse(
+                number: 19,
+                text: "जैसे कूदि सिन्धु वहि पारा\nसुरसा बदन पैठि बिस्तारा",
+                meaning: "Just as you leaped across the ocean, and entered and expanded in Surasa's mouth.",
+                simpleTranslation: "You jumped across the huge ocean and even went into the mouth of the demon Surasa and came out!",
+                explanation: "When Hanuman ji was flying to Lanka, a demon named Surasa tried to stop him by opening her big mouth. But Hanuman ji became very small, went inside, and came out! This shows how clever and quick-thinking he is.",
+                audioFileName: "baan_19",
+                transliteration: "Jaise Koodi Sindhu Vahi Para\nSursa Badan Paithi Bistara"
+            ),
+            Verse(
+                number: 20,
+                text: "आगे जाय लंकिनी रोका\nमारेहु लात गई सुर लोका",
+                meaning: "When you went ahead, Lankini blocked your way. You kicked her and she went to heaven.",
+                simpleTranslation: "A demon guard tried to stop you at Lanka's gate, but you kicked her so hard she went to heaven!",
+                explanation: "Lankini was a powerful demon guarding Lanka's gates. When she tried to stop Hanuman ji, one kick from him was so powerful that it freed her from being a demon! Sometimes what seems like a fight can actually help someone become better.",
+                audioFileName: "baan_20",
+                transliteration: "Aage Jaay Lankini Roka\nMarehu Laat Gayi Sur Loka"
+            ),
+            Verse(
+                number: 21,
+                text: "जाय विभीषण को सुख दीन्हा\nसीता निरखि परम पद लीन्हा",
+                meaning: "You went and gave happiness to Vibhishana, and after seeing Sita, you attained the highest position.",
+                simpleTranslation: "You made Vibhishana happy by meeting him, and when you saw Mother Sita, you felt blessed!",
+                explanation: "Vibhishana was Ravana's brother but he loved Lord Ram. Hanuman ji visited him first and made him happy. Then when he saw Mother Sita, he felt so blessed and peaceful. This teaches us to respect and help good people, no matter where they come from.",
+                audioFileName: "baan_21",
+                transliteration: "Jaay Vibhishan Ko Sukh Dinha\nSita Nirakhi Param Pad Linha"
+            ),
+            Verse(
+                number: 22,
+                text: "बाग उजारि सिन्धु महं बोरा\nअति आतुर यम कातर तोरा",
+                meaning: "You destroyed the garden and threw the demons into the ocean. You shattered the fear of death itself.",
+                simpleTranslation: "You destroyed Ravana's beautiful garden and threw demons into the sea. You even scared away the fear of death!",
+                explanation: "Hanuman ji destroyed the beautiful Ashok Vatika garden to show Ravana his power. He threw many demons into the ocean. He is so powerful that even death itself cannot frighten him!",
+                audioFileName: "baan_22",
+                transliteration: "Baag Ujari Sindhu Mein Bora\nAti Aatur Yam Kaatar Tora"
+            ),
+            Verse(
+                number: 23,
+                text: "अक्षय कुमार मारि संहारा\nलूम लपेटि लंक को जारा",
+                meaning: "You killed Akshay Kumar and burned Lanka by wrapping your tail with cloth.",
+                simpleTranslation: "You defeated Ravana's son Akshay Kumar, and then you set fire to Lanka using your tail!",
+                explanation: "Akshay Kumar was Ravana's brave son who fought Hanuman ji. When demons tied cloth to Hanuman ji's tail and lit it on fire, he used it to burn the entire city of Lanka! He turned their trap into his weapon. This teaches us to be smart and turn problems into solutions!",
+                audioFileName: "baan_23",
+                transliteration: "Akshay Kumar Mari Sanhara\nLoom Lapeti Lanka Ko Jara"
+            ),
+            Verse(
+                number: 24,
+                text: "लाह समान लंक जरि गई\nजय जय धुनि सुर पुर महं भई",
+                meaning: "Lanka burned like lac. Victory shouts rang out in the heavens.",
+                simpleTranslation: "Lanka burned completely like wax! The gods in heaven shouted 'Victory! Victory!' in joy!",
+                explanation: "Lac (lakh) is something that burns very easily and completely. Lanka burned so fast and completely that even the gods in heaven were amazed and happy! They celebrated Hanuman ji's victory by cheering loudly.",
+                audioFileName: "baan_24",
+                transliteration: "Laah Samaan Lanka Jari Gayi\nJay Jay Dhuni Sur Pur Mein Bhayi"
+            ),
+            Verse(
+                number: 25,
+                text: "अब विलम्ब केहि कारण स्वामी\nकृपा करहुं उर अन्तर्यामी",
+                meaning: "Now why the delay, O Lord? O knower of hearts, please show your grace.",
+                simpleTranslation: "Why wait now, O Lord? You know what's in my heart - please help me!",
+                explanation: "This verse is us asking Hanuman ji to help us right away. He knows everything in our hearts - our worries, our fears, our needs. We don't even need to explain everything; he already understands and will help us!",
+                audioFileName: "baan_25",
+                transliteration: "Ab Vilamb Kehi Karan Swami\nKripa Karahu Ur Antaryami"
+            ),
+            Verse(
+                number: 26,
+                text: "जय जय लक्ष्मण प्राण के दाता\nआतुर होइ दुःख करहुं निपाता",
+                meaning: "Victory to the one who saved Lakshman's life! Come quickly and destroy all sorrows.",
+                simpleTranslation: "Victory to you, who saved Lakshman's life! Come fast and take away all our sadness!",
+                explanation: "When Lakshman ji was hurt badly in the war, Hanuman ji brought the Sanjivani herb and saved his life! Just like he rushed to help Lakshman ji, he will rush to help us when we are in trouble.",
+                audioFileName: "baan_26",
+                transliteration: "Jay Jay Lakshman Pran Ke Data\nAtur Hoi Dukh Karahu Nipata"
+            ),
+            Verse(
+                number: 27,
+                text: "जय गिरिधर जय जय सुख सागर\nसुर समूह समरथ भटनागर",
+                meaning: "Victory to the lifter of mountains, victory to the ocean of joy! You are the foremost among mighty warriors and gods praise you.",
+                simpleTranslation: "Victory to you who lifted the mountain! You are an ocean of happiness and the greatest warrior! Even gods praise you!",
+                explanation: "Hanuman ji is called 'Giridhara' because he lifted an entire mountain! He brings so much joy that he's like an ocean of happiness. All the gods and even great warriors respect and praise him.",
+                audioFileName: "baan_27",
+                transliteration: "Jay Giridhar Jay Jay Sukh Sagar\nSur Samooh Samartha Bhatnagar"
+            ),
+            Verse(
+                number: 28,
+                text: "ॐ हनु हनु हनु हनुमन्त हठीले\nबैरिहिं मारू बज्र की कीले",
+                meaning: "Om Hanu Hanu Hanu Hanumant, O determined one! Strike the enemy like thunderbolt nails.",
+                simpleTranslation: "Om Hanu Hanu Hanuman! You are so determined! Strike our enemies like lightning bolts!",
+                explanation: "This is a powerful mantra calling Hanuman ji's name with great energy! 'Hathila' means very determined - once Hanuman ji decides to help someone, nothing can stop him! He destroys all bad things with the power of a thunderbolt!",
+                audioFileName: "baan_28",
+                transliteration: "Om Hanu Hanu Hanu Hanumant Hathile\nBairihi Maru Bajra Ki Kile"
+            ),
+            Verse(
+                number: 29,
+                text: "गदा बज्र लै बैरिहिं मारो\nमहाराज प्रभु दास उबारो",
+                meaning: "Take your mace and thunderbolt and strike the enemy. O great king, O Lord, save your devotee!",
+                simpleTranslation: "Take your powerful weapons and defeat our enemies! O great king, please save us, your devotees!",
+                explanation: "Hanuman ji carries a gada (mace) and has the power of vajra (thunderbolt). With these powerful weapons, he protects his devotees from all dangers. We're asking him to use his strength to keep us safe!",
+                audioFileName: "baan_29",
+                transliteration: "Gada Bajra Lai Bairihi Maro\nMaharaj Prabhu Das Ubaro"
+            ),
+            Verse(
+                number: 30,
+                text: "ॐकार हुंकार महाप्रभु धावो\nबज्र गदा हनु विलम्ब न लावो",
+                meaning: "With the sounds of Om and Hum, O great Lord, please charge! With thunderbolt and mace, O Hanuman, don't delay!",
+                simpleTranslation: "With the powerful sounds Om and Hum, come running to help us! With your strong weapons, don't wait - come now!",
+                explanation: "Om and Hum are very powerful sacred sounds. When we call Hanuman ji with these sounds, he comes with great speed and power, carrying his mighty weapons to protect us. This verse urges him to hurry and help us right away!",
+                audioFileName: "baan_30",
+                transliteration: "Omkar Humkar Mahaprabhu Dhavo\nBajra Gada Hanu Vilamb Na Lavo"
+            ),
+            Verse(
+                number: 31,
+                text: "ॐ ह्रीं ह्रीं ह्रीं हनुमन्त कपीसा\nॐ हुं हुं हुं हनु अरि उर शीशा",
+                meaning: "Om Hreem Hreem Hreem Hanumant, king of monkeys! Om Hum Hum Hum, O Hanuman, pierce the enemy's heart!",
+                simpleTranslation: "Om Hreem Hreem Hreem Hanuman, king of monkeys! Om Hum Hum Hum, destroy all enemies!",
+                explanation: "These are special mantric sounds (seed syllables) that call upon Hanuman ji's energy. 'Hreem' and 'Hum' are powerful sounds that invoke his protective power. 'Kapisa' means king of monkeys - Hanuman ji is the leader of all the monkey warriors!",
+                audioFileName: "baan_31",
+                transliteration: "Om Hreem Hreem Hreem Hanumant Kapisa\nOm Hum Hum Hum Hanu Ari Ur Shisa"
+            ),
+            Verse(
+                number: 32,
+                text: "सत्य होउ हरि शपथ पायके\nरामदूत धरु मारु धाय के",
+                meaning: "By the oath of Lord Hari, let this be true! O messenger of Ram, seize and strike the enemies charging at you!",
+                simpleTranslation: "By Lord Vishnu's promise, this will come true! O Ram's messenger, catch and defeat all enemies!",
+                explanation: "This verse says that because Lord Vishnu (Hari) himself has blessed Hanuman ji, everything we ask will definitely come true! As Lord Ram's special messenger, Hanuman ji has the power to catch and defeat anyone who tries to harm us!",
+                audioFileName: "baan_32",
+                transliteration: "Satya Hou Hari Shapath Payake\nRamdoot Dharu Maru Dhaay Ke"
+            ),
+            Verse(
+                number: 33,
+                text: "जय जय जय हनुमन्त अगाधा\nदुःख पावत जन केहि अपराधा",
+                meaning: "Victory, victory, victory to the infinite Hanuman! If a devotee suffers, what crime have they committed?",
+                simpleTranslation: "Victory to you, limitless Hanuman! If your devotee is sad, what wrong have they done?",
+                explanation: "Hanuman ji's power is endless and unlimited! This verse asks: if someone who loves and worships Hanuman ji is still suffering, how can that be? It means that Hanuman ji will definitely help his devotees and not let them suffer for long!",
+                audioFileName: "baan_33",
+                transliteration: "Jay Jay Jay Hanumant Agadha\nDukh Pavat Jan Kehi Aparadha"
+            ),
+            Verse(
+                number: 34,
+                text: "पूजा जप तप नेम अचारा\nनहिं जानत कछु दास तुम्हारा",
+                meaning: "Your devotee doesn't know much about worship, chanting, austerities, or religious conduct.",
+                simpleTranslation: "I don't know how to do proper worship or prayer rituals, but I am your devotee!",
+                explanation: "This beautiful verse says that even if we don't know all the fancy ways to worship or all the complex prayers, it's okay! What matters most to Hanuman ji is our love and faith, not how perfectly we do rituals. He loves simple, sincere devotion!",
+                audioFileName: "baan_34",
+                transliteration: "Pooja Jap Tap Nem Achara\nNahi Janat Kachhu Das Tumhara"
+            ),
+            Verse(
+                number: 35,
+                text: "वन उपवन मग गिरि गृह माहीं\nतुमरे बल हम डरपत नाहीं",
+                meaning: "In forests, gardens, roads, mountains, or homes - with your strength, we fear nothing!",
+                simpleTranslation: "Wherever we go - forest, garden, road, mountain, or home - with your power, we're not afraid of anything!",
+                explanation: "When we have Hanuman ji's protection, we can go anywhere without fear! Whether it's a scary forest, a lonely road, or a high mountain - we feel safe because Hanuman ji is with us. His strength gives us courage everywhere!",
+                audioFileName: "baan_35",
+                transliteration: "Van Upavan Mag Giri Griha Mahin\nTumre Bal Ham Darpat Nahin"
+            ),
+            Verse(
+                number: 36,
+                text: "पाय परौं कर जोरि मनावों\nयह अवसर अब केहि गोहरावों",
+                meaning: "I fall at your feet with folded hands and pray. At this time, whom else should I call upon?",
+                simpleTranslation: "I bow at your feet and pray with my hands folded. In this difficult time, who else can I ask for help?",
+                explanation: "When we're in trouble, we bow humbly before Hanuman ji and pray with respect. This verse asks: if not Hanuman ji, then who else can help us? He is our greatest protector! Just like when you need help, you go to your parents first, we go to Hanuman ji!",
+                audioFileName: "baan_36",
+                transliteration: "Paay Parao Kar Jori Manavo\nYah Avasar Ab Kehi Goharo"
+            ),
+            Verse(
+                number: 37,
+                text: "जय अंजनि कुमार बलवन्ता\nशंकर सुवन धीर हनुमन्ता",
+                meaning: "Victory to Anjani's son, the mighty one! You are blessed by Shiva and are the patient, steadfast Hanuman.",
+                simpleTranslation: "Victory to Mother Anjani's strong son! Lord Shiva has blessed you, and you are patient and steady!",
+                explanation: "Hanuman ji is not just strong in body, but also strong in patience and wisdom. Lord Shiva (Shankar) gave him special blessings. Being strong doesn't just mean muscles - it also means being calm, patient, and wise like Hanuman ji!",
+                audioFileName: "baan_37",
+                transliteration: "Jay Anjani Kumar Balwanta\nShankar Suvan Dheer Hanumanta"
+            ),
+            Verse(
+                number: 38,
+                text: "बदन कराल काल कुल घालक\nराम सहाय सदा प्रतिपालक",
+                meaning: "Your fierce face destroys the entire family of Death. You are Ram's helper and always protect devotees.",
+                simpleTranslation: "Your powerful face can even scare Death itself! You help Lord Ram and always protect your devotees!",
+                explanation: "When Hanuman ji becomes fierce to protect someone, even Death himself gets scared! But to his devotees, he is always loving and protective. He helped Lord Ram in the war and he still helps all of us today. He is our forever protector!",
+                audioFileName: "baan_38",
+                transliteration: "Badan Karal Kaal Kul Ghalak\nRam Sahay Sada Pratipalak"
+            ),
+            Verse(
+                number: 39,
+                text: "भूत प्रेत पिशाच निशाचर\nअग्नि बैताल काल मारीमर",
+                meaning: "Ghosts, spirits, demons, night-wanderers, fire demons, vampires, and plagues - destroy them all!",
+                simpleTranslation: "Ghosts, spirits, demons, and all scary things - chase them all away and destroy them!",
+                explanation: "This verse lists many scary things - ghosts (bhoot), spirits (pret), demons (pishaach), and other frightening creatures. Hanuman ji's power is so great that he can protect us from all of these! When we remember Hanuman ji, nothing scary can come near us!",
+                audioFileName: "baan_39",
+                transliteration: "Bhoot Pret Pishaach Nishachar\nAgni Betal Kaal Marimar"
+            ),
+            Verse(
+                number: 40,
+                text: "इन्हें मारु तोहि शपथ राम की\nराखु नाथ मरजाद नाम की",
+                meaning: "Destroy these by Ram's oath! O Lord, protect the honor of your name!",
+                simpleTranslation: "Destroy all bad things - I swear by Lord Ram's name! Please protect the glory of your great name!",
+                explanation: "We are asking Hanuman ji to destroy all bad things and evil forces, calling upon Lord Ram's name as a sacred promise. Hanuman ji always protects his devotees to maintain the honor and glory of his own name. When people trust him, he never lets them down!",
+                audioFileName: "baan_40",
+                transliteration: "Inhe Maru Tohi Shapath Ram Ki\nRakhu Nath Marjad Naam Ki"
+            ),
+            Verse(
+                number: 41,
+                text: "जय जय जय धुनि होत अकासा\nसुमिरत होय दुश्मन को नासा",
+                meaning: "Victory, victory, victory - these sounds echo in the sky! By remembering you, enemies are destroyed.",
+                simpleTranslation: "Victory chants fill the sky! When we remember you, all our enemies are defeated!",
+                explanation: "When we chant 'Jai Jai Jai' (Victory) to Hanuman ji, the sound spreads everywhere, even in the sky! Just by thinking of Hanuman ji and remembering his name, all the bad things and problems in our life go away. It's that powerful!",
+                audioFileName: "baan_41",
+                transliteration: "Jay Jay Jay Dhuni Hot Akasa\nSumirat Hoy Dushman Ko Nasa"
+            ),
+            Verse(
+                number: 42,
+                text: "चित्र लिख्यो बजरंग बान\nयाहि समान कबहुं नहिं आन",
+                meaning: "Bajrang Baan is written beautifully. There is nothing else equal to this!",
+                simpleTranslation: "This Bajrang Baan prayer is wonderfully written! There is no other prayer as powerful as this!",
+                explanation: "This final verse praises the Bajrang Baan itself! It was written with great devotion and skill by Tulsidas. It's considered one of the most powerful prayers to Hanuman ji. When we recite it with love and faith, it protects us like nothing else can!",
+                audioFileName: "baan_42",
+                transliteration: "Chitra Likhyo Bajrang Baan\nYahi Samaan Kabahu Nahi Aan"
+            )
+        ]
+        
+        // Closing Doha
+        let closingVerses: [Verse] = [
+            Verse(
+                number: -2,
+                text: "अष्ट सिद्धि नव निधि के दाता\nअस बर दीन जानकी माता",
+                meaning: "You are the bestower of the eight supernatural powers and nine treasures. Mother Sita has blessed you with such divine boons.",
+                simpleTranslation: "Mother Sita gave you special powers - eight magical abilities and nine types of treasures. You can give these gifts to people who love you.",
+                explanation: "Mother Sita blessed Hanuman ji with amazing powers! The 'eight siddhis' are special magical abilities like becoming very tiny or very huge, and the 'nine nidhis' are nine types of treasures. Hanuman ji can share these with people who pray to him sincerely!",
+                audioFileName: "baan_closing",
+                transliteration: "Asht Siddhi Nav Nidhi Ke Data\nAs Bar Deen Janaki Mata"
+            )
+        ]
+        
+        // Educational content about Hanuman Baan
+        let baanAboutInfo = """
+🛡️ What is Hanuman Baan (Bajrang Baan)?
+
+Hanuman Baan, also called Bajrang Baan, is a powerful protective prayer dedicated to Lord Hanuman. It was composed by the great saint Goswami Tulsidas, who also wrote the Hanuman Chalisa.
+
+**What Does "Baan" Mean?**
+"Baan" means "arrow" in Hindi. Just like an arrow protects a warrior, this prayer is believed to protect devotees from all troubles, negative energies, and obstacles. It acts like a spiritual shield!
+
+**When to Recite Hanuman Baan:**
+- When facing difficult challenges or obstacles
+- For protection from negative influences
+- When feeling scared or worried
+- Before important events or examinations
+- Every Tuesday or Saturday (Hanuman's special days)
+
+**Special Powers of This Prayer:**
+According to Hindu beliefs, regular recitation of Hanuman Baan:
+- Provides divine protection from harm
+- Removes obstacles and difficulties
+- Gives courage and strength
+- Protects from nightmares and fears
+- Brings success in endeavors
+- Shields from negative energies
+
+**Important Points:**
+- Should be recited with firm faith and devotion
+- Best recited early in the morning after bathing
+- Even more powerful when recited 7, 11, or 21 times
+- Can be recited daily for continuous protection
+- No specific rules - your love and faith matter most
+
+**The Story Behind It:**
+Tulsidas wrote this prayer after experiencing Hanuman's protection in his own life. He witnessed how powerful and protective Hanuman ji is for his devotees. The prayer recalls Hanuman's mighty deeds, especially his journey to Lanka to find Mother Sita.
+
+**Remember:**
+This prayer is especially good when you're feeling scared or facing a big challenge. Just like Hanuman ji protected Mother Sita and helped Lord Ram, he will protect and help you too! Recite it with love and faith in your heart. 🙏
+"""
+        
+        return Prayer(
+            title: "Hanuman Baan",
+            titleHindi: "हनुमान बाण",
+            type: .baan,
+            category: .hanuman,
+            description: "A powerful protective prayer to Hanuman, believed to act as a spiritual shield. Composed by Tulsidas, it removes obstacles and provides divine protection from all troubles.",
+            iconName: "shield.lefthalf.filled",
+            verses: baanVerses,
+            openingVerses: openingVerses,
+            closingVerses: closingVerses,
+            hasQuiz: true,
+            hasCompletePlayback: true,
+            hasCompleted: false,
+            aboutInfo: baanAboutInfo
         )
     }
     
@@ -570,26 +1036,6 @@ When you chant this mantra regularly, amazing things happen! You'll find it easi
         prayers.filter { $0.type == type }
     }
     
-    /// Get bookmarked prayers
-    var bookmarkedPrayersList: [Prayer] {
-        prayers.filter { bookmarkedPrayers.contains($0.id) }
-    }
-    
-    /// Toggle bookmark for a prayer
-    func toggleBookmark(for prayer: Prayer) {
-        if bookmarkedPrayers.contains(prayer.id) {
-            bookmarkedPrayers.remove(prayer.id)
-        } else {
-            bookmarkedPrayers.insert(prayer.id)
-        }
-        saveBookmarks()
-        
-        // Update the prayer's bookmark status
-        if let index = prayers.firstIndex(where: { $0.id == prayer.id }) {
-            prayers[index].isBookmarked.toggle()
-        }
-    }
-    
     /// Add a prayer to the library
     func addPrayer(_ prayer: Prayer) {
         // Check if prayer already exists
@@ -615,26 +1061,9 @@ When you chant this mantra regularly, amazing things happen! You'll find it easi
         selectedPrayer = nil
     }
     
-    /// Save bookmarks to UserDefaults
-    private func saveBookmarks() {
-        let bookmarkIds = bookmarkedPrayers.map { $0.uuidString }
-        UserDefaults.standard.set(bookmarkIds, forKey: "BookmarkedPrayers")
-    }
-    
-    /// Load bookmarks from UserDefaults
-    private func loadBookmarks() {
-        if let bookmarkIds = UserDefaults.standard.array(forKey: "BookmarkedPrayers") as? [String] {
-            bookmarkedPrayers = Set(bookmarkIds.compactMap { UUID(uuidString: $0) })
-        }
-    }
-    
     /// Get statistics
     var totalPrayersCount: Int {
         prayers.count
-    }
-    
-    var bookmarkedCount: Int {
-        bookmarkedPrayers.count
     }
     
     /// Get prayers grouped by category

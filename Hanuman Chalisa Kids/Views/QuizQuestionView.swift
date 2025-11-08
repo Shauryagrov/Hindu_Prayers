@@ -22,7 +22,7 @@ struct QuizQuestionView: View {
                         
                         // Add slight delay before showing next question
                         DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
-                            onAnswer(index == question.correctAnswer)
+                            onAnswer(index == question.correctAnswerIndex)
                         }
                     }
                 }) {
@@ -49,7 +49,7 @@ struct QuizQuestionView: View {
     
     private func buttonBackground(for index: Int) -> Color {
         guard hasAnswered else { return .gray.opacity(0.1) }
-        if index == question.correctAnswer {
+        if index == question.correctAnswerIndex {
             return .green.opacity(0.2)
         }
         return index == selectedAnswer ? .red.opacity(0.2) : .gray.opacity(0.1)
@@ -57,20 +57,20 @@ struct QuizQuestionView: View {
     
     private func buttonTextColor(for index: Int) -> Color {
         guard hasAnswered else { return .primary }
-        if index == question.correctAnswer {
+        if index == question.correctAnswerIndex {
             return .green
         }
         return index == selectedAnswer ? .red : .primary
     }
     
     private func answerIcon(for index: Int) -> String {
-        if index == question.correctAnswer {
+        if index == question.correctAnswerIndex {
             return "checkmark.circle.fill"
         }
         return index == selectedAnswer ? "x.circle.fill" : ""
     }
     
     private func answerColor(for index: Int) -> Color {
-        index == question.correctAnswer ? .green : .red
+        index == question.correctAnswerIndex ? .green : .red
     }
 } 

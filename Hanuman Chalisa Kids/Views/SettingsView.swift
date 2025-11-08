@@ -34,7 +34,7 @@ struct SettingsView: View {
                 // Quick Speech Rate Adjustment
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
-                        Text("Speech Rate")
+                    Text("Speech Rate")
                             .foregroundColor(.primary)
                         Spacer()
                         Text(String(format: "%.1fx", viewModel.speechRate * 2))

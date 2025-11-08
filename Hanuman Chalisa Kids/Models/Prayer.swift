@@ -8,6 +8,7 @@ enum PrayerType: String, Codable, CaseIterable {
     case pooja = "Pooja"
     case bhajan = "Bhajan"
     case mantra = "Mantra"
+    case baan = "Baan"
 }
 
 /// Represents a prayer category for organization
@@ -63,9 +64,6 @@ struct Prayer: Identifiable, Codable, Hashable {
     /// Whether this prayer has complete playback mode
     var hasCompletePlayback: Bool = true
     
-    /// Whether the user has bookmarked this prayer
-    var isBookmarked: Bool = false
-    
     /// Whether the user has completed this prayer
     var hasCompleted: Bool = false
     
@@ -76,7 +74,7 @@ struct Prayer: Identifiable, Codable, Hashable {
     enum CodingKeys: String, CodingKey {
         case title, titleHindi, type, category, description, iconName
         case verses, openingVerses, closingVerses
-        case hasQuiz, hasCompletePlayback, isBookmarked, hasCompleted, aboutInfo
+        case hasQuiz, hasCompletePlayback, hasCompleted, aboutInfo
     }
     
     init(
@@ -91,7 +89,6 @@ struct Prayer: Identifiable, Codable, Hashable {
         closingVerses: [Verse]? = nil,
         hasQuiz: Bool = false,
         hasCompletePlayback: Bool = true,
-        isBookmarked: Bool = false,
         hasCompleted: Bool = false,
         aboutInfo: String? = nil
     ) {
@@ -106,7 +103,6 @@ struct Prayer: Identifiable, Codable, Hashable {
         self.closingVerses = closingVerses
         self.hasQuiz = hasQuiz
         self.hasCompletePlayback = hasCompletePlayback
-        self.isBookmarked = isBookmarked
         self.hasCompleted = hasCompleted
         self.aboutInfo = aboutInfo
     }
@@ -147,6 +143,73 @@ extension Prayer {
     /// Display title (prefers Hindi if available)
     var displayTitle: String {
         titleHindi ?? title
+    }
+    
+    /// Combined English + Hindi title for bilingual UI labels
+    var bilingualTitle: String {
+        if let hindi = titleHindi, !hindi.isEmpty {
+            return "\(title) • \(hindi)"
+        }
+        return title
+    }
+    
+    /// Bilingual label for complete playback buttons/links
+    var bilingualCompleteLabel: String {
+        if let hindi = titleHindi, !hindi.isEmpty {
+            return "Complete \(title) • संपूर्ण \(hindi)"
+        }
+        return "Complete \(title)"
+    }
+    
+    /// Bilingual label for play-full actions
+    var bilingualPlayFullLabel: String {
+        if let hindi = titleHindi, !hindi.isEmpty {
+            return "Play Full \(title) • संपूर्ण \(hindi) चलाएँ"
+        }
+        return "Play Full \(title)"
+    }
+    
+    /// Preferred icon name used throughout the app (falls back to type/category icons)
+    var preferredIconName: String {
+        if let customIcon = iconName, customIcon.contains(".") {
+            return customIcon
+        }
+        
+        switch type {
+        case .chalisa:
+            return AppIcons.chalisa
+        case .aarti:
+            return AppIcons.aarti
+        case .mantra:
+            return AppIcons.mantra
+        case .baan:
+            return AppIcons.baan
+        case .pooja:
+            return AppIcons.temple
+        case .bhajan:
+            return AppIcons.prayer
+        }
+        
+        switch category {
+        case .hanuman:
+            return AppIcons.hanuman
+        case .laxmi:
+            return AppIcons.lakshmi
+        case .shiva:
+            return AppIcons.shiva
+        case .vishnu:
+            return AppIcons.vishnu
+        case .ganesh:
+            return AppIcons.ganesh
+        case .durga:
+            return AppIcons.durga
+        case .krishna:
+            return AppIcons.krishna
+        case .ram:
+            return AppIcons.chalisa
+        case .general:
+            return AppIcons.lotus
+        }
     }
 }
 

@@ -3,6 +3,8 @@ import SwiftUI
 struct VerseDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject var viewModel: VersesViewModel
+    @EnvironmentObject var prayerContext: CurrentPrayerContext
+    @EnvironmentObject private var blessingProgress: BlessingProgressStore
     @Binding var navigationPath: NavigationPath
     let verse: Verse
     
@@ -12,13 +14,10 @@ struct VerseDetailView: View {
     @State private var scrollProxy: ScrollViewProxy?
     @State private var showError = false
     @State private var errorMessage = ""
-    @State private var isBookmarked: Bool
     
-    // Initialize with the current bookmark state
     init(navigationPath: Binding<NavigationPath>, verse: Verse) {
         self._navigationPath = navigationPath
         self.verse = verse
-        self._isBookmarked = State(initialValue: UserDefaults.standard.bool(forKey: "bookmark_\(verse.number)"))
     }
     
     var body: some View {
@@ -45,13 +44,13 @@ struct VerseDetailView: View {
                                     currentWord: viewModel.currentWord,
                                     currentRange: viewModel.currentRange
                                 )
-                                .font(.title2)
+                            .font(.title2)
                                 .fontWeight(.semibold)
-                                .lineSpacing(8)
+                            .lineSpacing(8)
                                 .multilineTextAlignment(.center)
-                                .id("main-text")
-                                .accessibilityLabel("Verse text in Hindi")
-                                .accessibilityHint("Double tap to hear pronunciation")
+                            .id("main-text")
+                            .accessibilityLabel("Verse text in Hindi")
+                            .accessibilityHint("Double tap to hear pronunciation")
                             }
                         }
                         .frame(maxWidth: .infinity)
@@ -86,96 +85,96 @@ struct VerseDetailView: View {
                             .fill(viewModel.currentPlaybackState == .mainText ? 
                                   Color.orange.opacity(0.1) : Color(.systemBackground))
                     )
-                    
-                    // Play button - centered
-                    VStack(spacing: 12) {
-                        Button(action: {
-                            if viewModel.isPlaying {
-                                if viewModel.isPaused {
-                                    viewModel.resumeAudio(for: .verseDetail)
-                                } else {
-                                    viewModel.pauseAudio(for: .verseDetail)
-                                }
-                            } else {
-                                viewModel.playVerse(verse)
-                            }
-                        }) {
-                            HStack(spacing: 12) {
-                                Image(systemName: viewModel.isPlaying ? 
-                                      (viewModel.isPaused ? "play.circle.fill" : "pause.circle.fill") : 
-                                      "play.circle.fill")
-                                    .font(.system(size: 44))
-                                Text(viewModel.isPlaying ? 
-                                     (viewModel.isPaused ? "Resume" : "Pause") : 
-                                     "Listen")
-                                    .font(.headline)
-                            }
-                            .foregroundColor(.orange)
-                            .padding()
-                            .frame(maxWidth: .infinity)
-                            .background(Color.orange.opacity(0.1))
-                            .cornerRadius(12)
-                        }
-                        .alert("Playback Error", isPresented: $showError) {
-                            Button("OK", role: .cancel) {}
-                        } message: {
-                            Text(errorMessage)
-                        }
                         
-                        if viewModel.isPlaying {
-                            ProgressView()
-                                .progressViewStyle(LinearProgressViewStyle(tint: .orange))
-                                .padding(.horizontal)
+                    // Play button - centered
+                        VStack(spacing: 12) {
+                            Button(action: {
+                                if viewModel.isPlaying {
+                                    if viewModel.isPaused {
+                                        viewModel.resumeAudio(for: .verseDetail)
+                                    } else {
+                                        viewModel.pauseAudio(for: .verseDetail)
+                                    }
+                                } else {
+                                    viewModel.playVerse(verse)
+                                }
+                            }) {
+                            HStack(spacing: 12) {
+                                    Image(systemName: viewModel.isPlaying ? 
+                                          (viewModel.isPaused ? "play.circle.fill" : "pause.circle.fill") : 
+                                          "play.circle.fill")
+                                        .font(.system(size: 44))
+                                    Text(viewModel.isPlaying ? 
+                                         (viewModel.isPaused ? "Resume" : "Pause") : 
+                                         "Listen")
+                                        .font(.headline)
+                                }
+                                .foregroundColor(.orange)
+                                .padding()
+                            .frame(maxWidth: .infinity)
+                                .background(Color.orange.opacity(0.1))
+                            .cornerRadius(12)
+                            }
+                            .alert("Playback Error", isPresented: $showError) {
+                                Button("OK", role: .cancel) {}
+                            } message: {
+                                Text(errorMessage)
+                            }
+                            
+                            if viewModel.isPlaying {
+                                ProgressView()
+                                    .progressViewStyle(LinearProgressViewStyle(tint: .orange))
+                                    .padding(.horizontal)
+                            }
                         }
-                    }
                     .frame(maxWidth: .infinity)
-                    
-                    VStack(alignment: .leading, spacing: 16) {
-                        Text("English Translation")
-                            .font(.headline)
-                            .foregroundColor(.orange)
-                        Text(verse.meaning)
-                            .font(.body)
-                            .lineSpacing(6)
-                            .dynamicTypeSize(.large ... .accessibility3)
-                            .id("english-translation-text")
-                    }
+                        
+                        VStack(alignment: .leading, spacing: 16) {
+                            Text("English Translation")
+                                .font(.headline)
+                                .foregroundColor(.orange)
+                            Text(verse.meaning)
+                                .font(.body)
+                                .lineSpacing(6)
+                                .dynamicTypeSize(.large ... .accessibility3)
+                                .id("english-translation-text")
+                        }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .frame(minHeight: 120)
-                    .padding()
-                    .background(Color(.systemBackground))
+                        .padding()
+                        .background(Color(.systemBackground))
                     .cornerRadius(12)
-                    
-                    VStack(alignment: .leading, spacing: 16) {
-                        Text("Simple Translation")
-                            .font(.headline)
-                            .foregroundColor(.orange)
-                        Text(verse.simpleTranslation)
-                            .font(.body)
-                            .lineSpacing(6)
-                            .dynamicTypeSize(.large ... .accessibility3)
-                    }
+                        
+                        VStack(alignment: .leading, spacing: 16) {
+                            Text("Simple Translation")
+                                .font(.headline)
+                                .foregroundColor(.orange)
+                            Text(verse.simpleTranslation)
+                                .font(.body)
+                                .lineSpacing(6)
+                                .dynamicTypeSize(.large ... .accessibility3)
+                        }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .frame(minHeight: 120)
-                    .padding()
-                    .background(Color(.systemBackground))
+                        .padding()
+                        .background(Color(.systemBackground))
                     .cornerRadius(12)
-                    
-                    VStack(alignment: .leading, spacing: 16) {
-                        Text("What it means")
-                            .font(.headline)
-                            .foregroundColor(.orange)
-                        Text(highlightedText(verse.explanation))
-                            .font(.body)
-                            .lineSpacing(6)
-                            .id("explanation-text")
-                            .background(viewModel.currentPlaybackState == .explanation ? Color.orange.opacity(0.05) : Color.clear)
-                            .cornerRadius(8)
-                    }
+                        
+                        VStack(alignment: .leading, spacing: 16) {
+                            Text("What it means")
+                                .font(.headline)
+                                .foregroundColor(.orange)
+                            Text(highlightedText(verse.explanation))
+                                .font(.body)
+                                .lineSpacing(6)
+                                .id("explanation-text")
+                                .background(viewModel.currentPlaybackState == .explanation ? Color.orange.opacity(0.05) : Color.clear)
+                                .cornerRadius(8)
+                        }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .frame(minHeight: 120)
-                    .padding()
-                    .background(Color(.systemBackground))
+                        .padding()
+                        .background(Color(.systemBackground))
                     .cornerRadius(12)
                     
                     // Bottom spacing
@@ -185,10 +184,7 @@ struct VerseDetailView: View {
                 .padding()
             }
             .background(Color(.systemGray6))
-            .navigationTitle(verse.number > 0 ? "Verse \(verse.number)" : 
-                            verse.number == -1 ? "Opening Prayer 1" :
-                            verse.number == -2 ? "Opening Prayer 2" :
-                            "Closing Prayer")
+            .navigationTitle(displayTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(.visible, for: .navigationBar)
             .toolbarBackground(Color(.systemBackground), for: .navigationBar)
@@ -250,9 +246,22 @@ struct VerseDetailView: View {
                 }
             }
             .onDisappear {
-                viewModel.stopAudio()
+                viewModel.stopAllAudio()
             }
         }
+        .onAppear {
+            if let prayer = prayerContext.currentPrayer {
+                blessingProgress.recordVerse(verse, in: prayer)
+            }
+        }
+    }
+    
+    private var displayTitle: String {
+        if let prayer = prayerContext.currentPrayer {
+            return viewModel.displayLabel(for: verse, in: prayer)
+        }
+        if verse.number > 0 { return "Verse \(verse.number)" }
+        return "Verse"
     }
     
     private func highlightedText(_ text: String) -> AttributedString {
@@ -360,17 +369,6 @@ struct VerseDetailView: View {
             .accessibilityLabel("Next verse")
         }
         .padding(.horizontal)
-    }
-    
-    private func toggleBookmark() {
-        isBookmarked.toggle()
-        
-        // Save the bookmark state
-        UserDefaults.standard.set(isBookmarked, forKey: "bookmark_\(verse.number)")
-        
-        // No need to update the viewModel since it reads directly from UserDefaults
-        // Just notify that we need to refresh the UI
-        viewModel.objectWillChange.send()
     }
 }
 

@@ -1,15 +1,9 @@
 import SwiftUI
 import AVFoundation
-import SafariServices
-
 struct CompleteChalisaView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.presentationMode) private var presentationMode
     @EnvironmentObject var viewModel: VersesViewModel
-    
-    // YouTube video ID for full Hanuman Chalisa
-    private let youtubeVideoID = "UzdLbpQ-enM"
-    @State private var showingSafariView = false
     
     // Existing state variables
     @State private var showingContent = true
@@ -24,13 +18,6 @@ struct CompleteChalisaView: View {
     
     var body: some View {
         VStack(spacing: 20) {
-            // Header
-            Text("Complete Hanuman Chalisa")
-                .font(.title)
-                .fontWeight(.bold)
-                .foregroundColor(.orange)
-                .padding(.top)
-            
             // Playback controls
             VStack(spacing: 16) {
                 // Play/Pause button
@@ -57,7 +44,7 @@ struct CompleteChalisaView: View {
                         
                         Text(viewModel.isCompletePlaying ? 
                              (viewModel.isCompletePaused ? "Resume" : "Pause") : 
-                             "Play Complete Chalisa")
+                             "Play Full Hanuman Chalisa • संपूर्ण हनुमान चालीसा चलाएँ")
                             .font(.title2)
                             .fontWeight(.semibold)
                             .foregroundColor(.orange)
@@ -68,37 +55,6 @@ struct CompleteChalisaView: View {
                     .cornerRadius(15)
                 }
                 .buttonStyle(PlainButtonStyle())
-                
-                // YouTube video button - following Apple HIG
-                Button(action: {
-                    showingSafariView = true
-                }) {
-                    HStack(spacing: 12) {
-                        Image(systemName: "play.rectangle.fill")
-                            .font(.system(size: 24))
-                            .foregroundColor(.red)
-                        
-                        Text("Watch on YouTube")
-                            .font(.headline)
-                            .foregroundColor(.primary)
-                        
-                        Spacer()
-                        
-                        Image(systemName: "arrow.up.right.square")
-                            .font(.system(size: 16))
-                            .foregroundColor(.secondary)
-                    }
-                    .padding()
-                    .background(Color(.systemGray6))
-                    .cornerRadius(12)
-                }
-                .buttonStyle(PlainButtonStyle())
-                .padding(.horizontal)
-                .accessibilityLabel("Watch Hanuman Chalisa on YouTube")
-                .sheet(isPresented: $showingSafariView) {
-                    SafariView(url: URL(string: "https://www.youtube.com/watch?v=\(youtubeVideoID)")!)
-                        .edgesIgnoringSafeArea(.all)
-                }
                 
                 // Progress indicator
                 if viewModel.isCompletePlaying {
@@ -138,20 +94,38 @@ struct CompleteChalisaView: View {
                             .id("section-opening")
                         
                         ForEach(viewModel.sections[0].verses) { verse in
-                            Text(verse.text)
-                                .font(.title3)
-                                .lineSpacing(8)
-                                .padding(.vertical, 8)
-                                .id("verse-\(verse.number)")
-                                .background(
-                                    (viewModel.isCompletePlaying && 
-                                     viewModel.currentCompleteVerse?.id == verse.id) ||
-                                    (viewModel.isPlaying && 
-                                     viewModel.currentVerse?.id == verse.id && 
-                                     viewModel.currentPlaybackSource == .completeView) ?
-                                        Color.orange.opacity(0.1) : Color.clear
-                                )
-                                .cornerRadius(8)
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text(verse.text)
+                                    .font(.title3)
+                                
+                                if let transliteration = verse.transliteration, !transliteration.isEmpty {
+                                    Text(transliteration)
+                                        .font(.system(size: 15, weight: .medium, design: .rounded))
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                            .lineSpacing(6)
+                            .padding(.vertical, 8)
+                            .padding(.horizontal, 12)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(
+                                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                    .fill(Color.orange.opacity(0.05))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                            .stroke(
+                                                (viewModel.isCompletePlaying &&
+                                                 viewModel.currentCompleteVerse?.id == verse.id) ||
+                                                (viewModel.isPlaying &&
+                                                 viewModel.currentVerse?.id == verse.id &&
+                                                 viewModel.currentPlaybackSource == .completeView) ?
+                                                Color.orange.opacity(0.35) : Color.orange.opacity(0.12),
+                                                lineWidth: 1
+                                            )
+                                    )
+                            )
+                            .cornerRadius(12)
+                            .id("verse-\(verse.number)")
                         }
                         
                         // Main verses
@@ -162,20 +136,38 @@ struct CompleteChalisaView: View {
                             .id("section-main")
                         
                         ForEach(viewModel.verses) { verse in
-                            Text(verse.text)
-                                .font(.title3)
-                                .lineSpacing(8)
-                                .padding(.vertical, 4)
-                                .id("verse-\(verse.number)")
-                                .background(
-                                    (viewModel.isCompletePlaying && 
-                                     viewModel.currentCompleteVerse?.id == verse.id) ||
-                                    (viewModel.isPlaying && 
-                                     viewModel.currentVerse?.id == verse.id && 
-                                     viewModel.currentPlaybackSource == .completeView) ?
-                                        Color.orange.opacity(0.1) : Color.clear
-                                )
-                                .cornerRadius(8)
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text(verse.text)
+                                    .font(.title3)
+                                
+                                if let transliteration = verse.transliteration, !transliteration.isEmpty {
+                                    Text(transliteration)
+                                        .font(.system(size: 15, weight: .medium, design: .rounded))
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                            .lineSpacing(6)
+                            .padding(.vertical, 6)
+                            .padding(.horizontal, 12)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(
+                                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                    .fill(Color.orange.opacity(0.05))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                            .stroke(
+                                                (viewModel.isCompletePlaying &&
+                                                 viewModel.currentCompleteVerse?.id == verse.id) ||
+                                                (viewModel.isPlaying &&
+                                                 viewModel.currentVerse?.id == verse.id &&
+                                                 viewModel.currentPlaybackSource == .completeView) ?
+                                                Color.orange.opacity(0.35) : Color.orange.opacity(0.12),
+                                                lineWidth: 1
+                                            )
+                                    )
+                            )
+                            .cornerRadius(12)
+                            .id("verse-\(verse.number)")
                         }
                         
                         // Closing prayer
@@ -186,20 +178,38 @@ struct CompleteChalisaView: View {
                             .id("section-closing")
                         
                         ForEach(viewModel.sections[2].verses) { verse in
-                            Text(verse.text)
-                                .font(.title3)
-                                .lineSpacing(8)
-                                .padding(.vertical, 8)
-                                .id("verse-\(verse.number)")
-                                .background(
-                                    (viewModel.isCompletePlaying && 
-                                     viewModel.currentCompleteVerse?.id == verse.id) ||
-                                    (viewModel.isPlaying && 
-                                     viewModel.currentVerse?.id == verse.id && 
-                                     viewModel.currentPlaybackSource == .completeView) ?
-                                        Color.orange.opacity(0.1) : Color.clear
-                                )
-                                .cornerRadius(8)
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text(verse.text)
+                                    .font(.title3)
+                                
+                                if let transliteration = verse.transliteration, !transliteration.isEmpty {
+                                    Text(transliteration)
+                                        .font(.system(size: 15, weight: .medium, design: .rounded))
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                            .lineSpacing(6)
+                            .padding(.vertical, 8)
+                            .padding(.horizontal, 12)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(
+                                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                    .fill(Color.orange.opacity(0.05))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                            .stroke(
+                                                (viewModel.isCompletePlaying &&
+                                                 viewModel.currentCompleteVerse?.id == verse.id) ||
+                                                (viewModel.isPlaying &&
+                                                 viewModel.currentVerse?.id == verse.id &&
+                                                 viewModel.currentPlaybackSource == .completeView) ?
+                                                Color.orange.opacity(0.35) : Color.orange.opacity(0.12),
+                                                lineWidth: 1
+                                            )
+                                    )
+                            )
+                            .cornerRadius(12)
+                            .id("verse-\(verse.number)")
                         }
                     }
                     .padding()
@@ -233,13 +243,13 @@ struct CompleteChalisaView: View {
                 }
             }
         }
-        .navigationTitle("Complete Chalisa")
+        .navigationTitle("हनुमान चालीसा")
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
                 Button(action: {
-                    viewModel.stopAudio()
+                    viewModel.stopAllAudio()
                     dismiss()
                 }) {
                     HStack(spacing: 4) {
@@ -252,10 +262,7 @@ struct CompleteChalisaView: View {
         }
         .onDisappear {
             // Stop audio when leaving the view
-            if viewModel.isCompletePlaying || viewModel.isPlayingCompleteVersion {
-                print("CompleteChalisaView disappeared - stopping audio")
-                viewModel.stopAudio(for: .completeView)
-            }
+            viewModel.stopAllAudio()
         }
         .onAppear {
             // Track screen view
@@ -277,20 +284,5 @@ struct CompleteChalisaView: View {
     NavigationView {
         CompleteChalisaView()
             .environmentObject(VersesViewModel())
-    }
-}
-
-struct SafariView: UIViewControllerRepresentable {
-    let url: URL
-    
-    func makeUIViewController(context: UIViewControllerRepresentableContext<SafariView>) -> SFSafariViewController {
-        let safariViewController = SFSafariViewController(url: url)
-        safariViewController.preferredControlTintColor = UIColor.orange
-        safariViewController.preferredBarTintColor = UIColor.systemBackground
-        return safariViewController
-    }
-    
-    func updateUIViewController(_ uiViewController: SFSafariViewController, context: UIViewControllerRepresentableContext<SafariView>) {
-        // No update needed
     }
 } 

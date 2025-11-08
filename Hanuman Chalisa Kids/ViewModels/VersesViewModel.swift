@@ -201,11 +201,6 @@ class VersesViewModel: NSObject, ObservableObject {
         return verse
     }
     
-    // Add computed property for bookmarked verses
-    var bookmarkedVerses: Set<Int> {
-        Set(verses.filter { $0.isBookmarked }.map { $0.number })
-    }
-    
     // Add a property to track current verse
     @Published private(set) var currentVerse: Verse?
     
@@ -560,27 +555,6 @@ class VersesViewModel: NSObject, ObservableObject {
         }
     }
     
-    func toggleBookmark(for verse: Verse) {
-        if let index = verses.firstIndex(where: { $0.id == verse.id }) {
-            verses[index].isBookmarked.toggle()
-            saveBookmarks()
-        }
-    }
-    
-    private func saveBookmarks() {
-        let bookmarkedNumbers = verses.filter { $0.isBookmarked }.map { $0.number }
-        UserDefaults.standard.set(bookmarkedNumbers, forKey: "BookmarkedVerses")
-    }
-    
-    private func loadBookmarks() {
-        if let saved = UserDefaults.standard.array(forKey: "BookmarkedVerses") as? [Int] {
-            for number in saved {
-                if let index = verses.firstIndex(where: { $0.number == number }) {
-                    verses[index].isBookmarked = true
-                }
-            }
-        }
-    }
     
     private func loadProgress() {
         if let saved = UserDefaults.standard.array(forKey: "CompletedVerses") as? [Int] {
@@ -1187,10 +1161,11 @@ class VersesViewModel: NSObject, ObservableObject {
             let correctIndex = options.firstIndex(of: correctAnswer) ?? 0
             
             questions.append(QuizQuestion(
+                verseNumber: verse.number,
                 question: question,
                 options: options,
-                correctAnswer: correctIndex,
-                verseNumber: verse.number
+                correctAnswerIndex: correctIndex,
+                explanation: nil
             ))
         }
         
@@ -1439,6 +1414,8 @@ class VersesViewModel: NSObject, ObservableObject {
     private func getVoice(forLanguage languageCode: String) -> AVSpeechSynthesisVoice? {
         var voice: AVSpeechSynthesisVoice?
         
+        // Use a non-blocking approach with error handling
+        // Note: AVSpeechSynthesisVoice queries can fail silently, so we need robust fallbacks
         if languageCode == "hi-IN" || languageCode == "hi" {
             // Check if user has selected a specific Hindi voice
             if let selectedVoiceId = UserDefaults.standard.string(forKey: "selectedHindiVoice"),
@@ -1453,9 +1430,9 @@ class VersesViewModel: NSObject, ObservableObject {
             } else {
                 // Use default Hindi voice
                 print("Using default Hindi voice")
-                voice = AVSpeechSynthesisVoice(language: "hi-IN") ?? 
-                        AVSpeechSynthesisVoice(language: "hi") ?? 
-                        AVSpeechSynthesisVoice(language: "en-US")
+            voice = AVSpeechSynthesisVoice(language: "hi-IN") ?? 
+                    AVSpeechSynthesisVoice(language: "hi") ?? 
+                    AVSpeechSynthesisVoice(language: "en-US")
             }
         } else if languageCode == "en-IN" || languageCode == "en-US" || languageCode.hasPrefix("en") {
             // Check if user has selected a specific English voice
@@ -1471,9 +1448,9 @@ class VersesViewModel: NSObject, ObservableObject {
             } else {
                 // Use default English voice (prefer Indian English)
                 print("Using default English voice")
-                voice = AVSpeechSynthesisVoice(language: "en-IN") ?? 
-                        AVSpeechSynthesisVoice(language: "en-US") ?? 
-                        AVSpeechSynthesisVoice()
+            voice = AVSpeechSynthesisVoice(language: "en-IN") ?? 
+                    AVSpeechSynthesisVoice(language: "en-US") ?? 
+                    AVSpeechSynthesisVoice()
             }
         } else {
             // Generic fallback
@@ -1482,8 +1459,16 @@ class VersesViewModel: NSObject, ObservableObject {
                     AVSpeechSynthesisVoice()
         }
         
+        // Final fallback - ensure we always have a voice
+        if voice == nil {
+            print("Warning: All voice loading attempts failed, using system default")
+            voice = AVSpeechSynthesisVoice()
+        }
+        
         if let voice = voice {
             print("Voice selected: \(voice.name) (\(voice.language))")
+        } else {
+            print("ERROR: Could not get any voice - this should not happen!")
         }
         
         return voice
@@ -1741,6 +1726,9 @@ class VersesViewModel: NSObject, ObservableObject {
     private func playCurrentSection(using source: PlaybackSource = .completeView) {
         print("Playing current section: \(playbackPosition.section), index: \(playbackPosition.index) using source: \(source)")
         
+        // Reset intentional stopping flag so delegate continues advancing
+        isIntentionallyStopping = false
+        
         // Get the current verse based on section and index
         let verse: Verse
         
@@ -1781,7 +1769,7 @@ class VersesViewModel: NSObject, ObservableObject {
     // Add a method to stop audio for a specific source
     func stopAudio(for source: PlaybackSource? = nil) {
         let sourceToStop = source ?? currentPlaybackSource
-        print("Stopping audio for source: \(sourceToStop)")
+        print("Stopping audio IMMEDIATELY for source: \(sourceToStop)")
         
         switch sourceToStop {
         case .quiz:
@@ -1804,7 +1792,8 @@ class VersesViewModel: NSObject, ObservableObject {
             isPlaying = false
             isPaused = false
             detailSynthesizer.stopSpeaking(at: .immediate)
-            currentVerse = nil
+            // Don't clear currentVerse immediately - let the view handle cleanup
+            // currentVerse = nil
             
         case .none:
             // Stop all audio
@@ -1825,6 +1814,16 @@ class VersesViewModel: NSObject, ObservableObject {
             currentCompleteVerse = nil
             currentVerse = nil
         }
+        
+        // Also stop audio player if it's playing
+        if audioPlayer?.isPlaying == true {
+            audioPlayer?.stop()
+            print("Audio player stopped immediately")
+        }
+        
+        // Reset current word for highlighting
+        currentWord = nil
+        currentRange = nil
         
         // Notify observers
         objectWillChange.send()
@@ -1972,6 +1971,20 @@ class VersesViewModel: NSObject, ObservableObject {
         // Reset playback source
         currentPlaybackSource = .verseDetail
     }
+
+    func displayLabel(for verse: Verse, in prayer: Prayer) -> String {
+        if let opening = prayer.openingVerses,
+           let index = opening.firstIndex(where: { $0.id == verse.id }) {
+            return opening.count > 1 ? "Opening Prayer \(index + 1)" : "Opening Prayer"
+        }
+        
+        if let closing = prayer.closingVerses,
+           let index = closing.firstIndex(where: { $0.id == verse.id }) {
+            return closing.count > 1 ? "Closing Prayer \(index + 1)" : "Closing Prayer"
+        }
+        
+        return "Verse \(verse.number)"
+    }
 }
 
 extension VersesViewModel: AVAudioPlayerDelegate {
@@ -2044,7 +2057,12 @@ extension VersesViewModel: AVSpeechSynthesizerDelegate {
                     } else {
                         // We've finished all parts, stop playback
                         print("All parts finished in verse detail, stopping playback")
-                        self.stopAudio(for: .verseDetail)
+                        // Just stop the audio, but keep currentVerse for UI state
+                        self.isPlaying = false
+                        self.isPaused = false
+                        self.detailSynthesizer.stopSpeaking(at: .immediate)
+                        // Don't clear currentVerse here - let the view manage its own lifecycle
+                        // self.stopAudio(for: .verseDetail)
                     }
                 }
                 return

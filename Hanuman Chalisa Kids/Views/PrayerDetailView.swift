@@ -7,35 +7,47 @@ struct PrayerDetailView: View {
     let prayer: Prayer
     @Binding var navigationPath: NavigationPath
     @EnvironmentObject var versesViewModel: VersesViewModel
+    @EnvironmentObject var prayerContext: CurrentPrayerContext
+    @State private var showChat = false
+    @EnvironmentObject private var blessingProgress: BlessingProgressStore
+    
+    // Check if this is a single-verse mantra (like Gayatri Mantra)
+    // Gayatri Mantra verse 1 is the complete mantra, so we show it inline
+    private var isSingleVerseMantra: Bool {
+        prayer.type == .mantra && prayer.allVerses.count == 1
+    }
+    
+    // Get the main mantra verse (verse 1 for Gayatri Mantra)
+    private var mainMantraVerse: Verse? {
+        if isSingleVerseMantra {
+            return prayer.allVerses.first
+        }
+        return nil
+    }
     
     var body: some View {
         // Generic prayer view - no NavigationStack needed, already inside one
         VStack(spacing: 0) {
-            // Top action buttons (matching Hanuman Chalisa style)
-            if prayer.hasCompletePlayback || prayer.hasQuiz {
-                HStack {
-                    if prayer.hasCompletePlayback {
-                        NavigationLink(value: PrayerAction.completePlayback) {
-                            Label("Complete Playback", systemImage: "play.circle.fill")
-                                .foregroundColor(.orange)
-                                .font(.title3)
+            // For single-verse mantras (like Gayatri Mantra), show the full content inline
+            if isSingleVerseMantra {
+                if let verse = mainMantraVerse {
+                    ScrollView {
+                        VStack(spacing: 0) {
+                            // Show the complete mantra directly (no navigation needed)
+                            InlineMantraView(verse: verse, prayer: prayer)
+                                .environmentObject(versesViewModel)
+                            
+                            // Bottom spacing
+                            Color.clear.frame(height: 80)
                         }
                     }
-                    
-                    Spacer()
-                    
-                    if prayer.hasQuiz {
-                        NavigationLink(value: PrayerAction.quiz) {
-                            Label("Practice Quiz", systemImage: "questionmark.circle.fill")
-                                .foregroundColor(.orange)
-                                .font(.title3)
-                        }
+                    .background(Color(.systemGroupedBackground))
+                    .onAppear {
+                        blessingProgress.recordVerse(verse, in: prayer)
                     }
                 }
-                .padding(.horizontal)
-                .padding(.vertical, 8)
-            }
-            
+            } else {
+                // For multi-verse prayers, show list with navigation
             // Instruction text (matching Hanuman Chalisa)
             Text("Tap on any verse to learn more")
                 .font(.subheadline)
@@ -43,28 +55,30 @@ struct PrayerDetailView: View {
                 .padding(.top, 8)
                 .padding(.bottom, 4)
             
-            // Verses list - matching Chalisa style
+                // Verses list - matching Chalisa style
             ScrollView {
-                LazyVStack(spacing: 0) {
+                LazyVStack(spacing: 18) {
                     ForEach(prayer.allVerses) { verse in
                         NavigationLink(value: verse) {
                             PrayerVerseRow(verse: verse, prayer: prayer)
                         }
-                        .buttonStyle(PlainButtonStyle())
+                        .buttonStyle(.plain)
                     }
                     
-                    // Bottom spacing for comfortable scrolling
-                    Color.clear
-                        .frame(height: 80)
+                    Color.clear.frame(height: 80)
                 }
+                .padding(.horizontal, 20)
+                .padding(.top, 4)
+                .padding(.bottom, 12)
             }
             .background(Color(.systemGray6))
+            }
         }
         .navigationTitle(prayer.displayTitle)
-        .navigationBarTitleDisplayMode(.large)
+        .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
         .toolbar {
-            ToolbarItem(placement: .navigationBarLeading) {
+            ToolbarItem(placement: .topBarLeading) {
                 Button(action: {
                     versesViewModel.stopAudio()
                     navigationPath.removeLast()
@@ -75,6 +89,42 @@ struct PrayerDetailView: View {
                     }
                     .foregroundColor(.orange)
                 }
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                Button(action: {
+                    prayerContext.setCurrentPrayer(prayer)
+                    showChat = true
+                }) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "message.fill")
+                            .font(.system(size: 14, weight: .semibold))
+                        Text("Ask")
+                            .font(.system(size: 14, weight: .semibold))
+                    }
+                    .foregroundColor(.white)
+                    .padding(.vertical, 6)
+                    .padding(.horizontal, 12)
+                    .background(
+                        Capsule()
+                            .fill(AppGradients.saffronGold)
+                    )
+                    .shadow(color: AppColors.saffron.opacity(0.35), radius: 8, x: 0, y: 4)
+                }
+                .accessibilityLabel("Ask about prayer")
+            }
+        }
+        .onAppear {
+            // Set current prayer context when viewing this prayer
+            prayerContext.setCurrentPrayer(prayer)
+        }
+        .onDisappear {
+            // Clear prayer context when leaving
+            prayerContext.clearCurrentPrayer()
+            versesViewModel.stopAllAudio()
+        }
+        .fullScreenCover(isPresented: $showChat) {
+            PrayerChatView(prayer: prayer) {
+                showChat = false
             }
         }
         .navigationDestination(for: Verse.self) { verse in
@@ -98,9 +148,6 @@ struct PrayerDetailView: View {
                     GenericCompletePlaybackView(prayer: prayer)
                         .environmentObject(versesViewModel)
                 }
-            case .quiz:
-                QuizView()
-                    .environmentObject(versesViewModel)
             }
         }
     }
@@ -109,78 +156,6 @@ struct PrayerDetailView: View {
 // MARK: - Prayer Action Buttons
 enum PrayerAction: Hashable {
     case completePlayback
-    case quiz
-}
-
-private struct PrayerActionButtonsView: View {
-    let prayer: Prayer
-    
-    var body: some View {
-        VStack(spacing: 12) {
-            Text("Actions")
-                .font(.headline)
-                .foregroundColor(.orange)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            
-            HStack(spacing: 12) {
-                // Complete Playback button
-                if prayer.hasCompletePlayback {
-                    NavigationLink(value: PrayerAction.completePlayback) {
-                        ActionButton(
-                            icon: "play.circle.fill",
-                            title: "Complete Playback",
-                            subtitle: "Listen to full prayer"
-                        )
-                    }
-                    .buttonStyle(PlainButtonStyle())
-                }
-                
-                // Quiz button
-                if prayer.hasQuiz {
-                    NavigationLink(value: PrayerAction.quiz) {
-                        ActionButton(
-                            icon: "questionmark.circle.fill",
-                            title: "Practice Quiz",
-                            subtitle: "Test your knowledge"
-                        )
-                    }
-                    .buttonStyle(PlainButtonStyle())
-                }
-            }
-        }
-        .padding()
-        .background(Color(.systemGray6))
-        .cornerRadius(12)
-    }
-}
-
-// MARK: - Action Button
-private struct ActionButton: View {
-    let icon: String
-    let title: String
-    let subtitle: String
-    
-    var body: some View {
-        VStack(spacing: 8) {
-            Image(systemName: icon)
-                .font(.system(size: 32))
-                .foregroundColor(.orange)
-            
-            Text(title)
-                .font(.headline)
-                .foregroundColor(.primary)
-            
-            Text(subtitle)
-                .font(.caption)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-        }
-        .frame(maxWidth: .infinity)
-        .padding()
-        .background(Color(.systemBackground))
-        .cornerRadius(10)
-        .shadow(color: Color.black.opacity(0.05), radius: 3, x: 0, y: 1)
-    }
 }
 
 // MARK: - Prayer Header View
@@ -256,32 +231,232 @@ private struct PrayerHeaderView: View {
     }
 }
 
+// MARK: - Inline Mantra View (for single-verse mantras like Gayatri Mantra)
+private struct InlineMantraView: View {
+    let verse: Verse
+    let prayer: Prayer
+    @EnvironmentObject var versesViewModel: VersesViewModel
+    
+    var body: some View {
+        VStack(alignment: .center, spacing: 24) {
+            // Hindi text - centered in its own card
+            ZStack(alignment: .topTrailing) {
+                VStack(spacing: 16) {
+                    if let transliteration = verse.transliteration {
+                        TransliterationView(
+                            hindiText: verse.text,
+                            transliteration: transliteration,
+                            showTransliteration: versesViewModel.showTransliteration,
+                            currentWord: versesViewModel.currentWord,
+                            currentRange: versesViewModel.currentRange
+                        )
+                        .id("main-text")
+                        .accessibilityLabel("Mantra text in Hindi")
+                        .accessibilityHint("Double tap to hear pronunciation")
+                    } else {
+                        HindiOnlyView(
+                            hindiText: verse.text,
+                            currentWord: versesViewModel.currentWord,
+                            currentRange: versesViewModel.currentRange
+                        )
+                        .font(.title2)
+                        .fontWeight(.semibold)
+                        .lineSpacing(8)
+                        .multilineTextAlignment(.center)
+                        .id("main-text")
+                        .accessibilityLabel("Mantra text in Hindi")
+                        .accessibilityHint("Double tap to hear pronunciation")
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                .frame(minHeight: 120)
+                .padding()
+                .padding(.top, 40) // Space for toggle button
+                
+                // Transliteration toggle button
+                if verse.transliteration != nil {
+                    Button(action: {
+                        versesViewModel.showTransliteration.toggle()
+                        UserDefaults.standard.set(versesViewModel.showTransliteration, forKey: "showTransliteration")
+                    }) {
+                        Image(systemName: versesViewModel.showTransliteration ? "textformat.abc" : "textformat")
+                            .font(.system(size: 18, weight: .medium))
+                            .foregroundColor(versesViewModel.showTransliteration ? .orange : .secondary)
+                            .frame(width: 36, height: 36)
+                            .background(
+                                Circle()
+                                    .fill(Color(.systemGray6))
+                            )
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                    .padding(8)
+                    .accessibilityLabel(versesViewModel.showTransliteration ? "Hide transliteration" : "Show transliteration")
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .frame(minHeight: 120)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(versesViewModel.currentPlaybackState == .mainText ? 
+                          Color.orange.opacity(0.1) : Color(.systemBackground))
+            )
+            .padding(.horizontal)
+            
+            // Play button - centered
+            VStack(spacing: 12) {
+                Button(action: {
+                    if versesViewModel.isPlaying {
+                        if versesViewModel.isPaused {
+                            versesViewModel.resumeAudio(for: .verseDetail)
+                        } else {
+                            versesViewModel.pauseAudio(for: .verseDetail)
+                        }
+                    } else {
+                        versesViewModel.playVerse(verse)
+                    }
+                }) {
+                    HStack(spacing: 12) {
+                        Image(systemName: versesViewModel.isPlaying ?
+                              (versesViewModel.isPaused ? "play.circle.fill" : "pause.circle.fill") :
+                              "play.circle.fill")
+                            .font(.system(size: 44))
+                        Text(versesViewModel.isPlaying ?
+                             (versesViewModel.isPaused ? "Resume" : "Pause") :
+                             "Listen")
+                            .font(.headline)
+                    }
+                    .foregroundColor(.orange)
+                    .padding()
+                    .frame(maxWidth: .infinity)
+                    .background(Color.orange.opacity(0.1))
+                    .cornerRadius(12)
+                }
+                
+                if versesViewModel.isPlaying {
+                    ProgressView()
+                        .progressViewStyle(LinearProgressViewStyle(tint: .orange))
+                        .padding(.horizontal)
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal)
+            
+            // English translation
+            VStack(alignment: .leading, spacing: 16) {
+                Text("English Translation")
+                    .font(.headline)
+                    .foregroundColor(.orange)
+                Text(verse.meaning)
+                    .font(.body)
+                    .lineSpacing(6)
+                    .dynamicTypeSize(.large ... .accessibility3)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding()
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color(.systemBackground))
+            )
+            .padding(.horizontal)
+            
+            // Simple translation
+            if !verse.simpleTranslation.isEmpty {
+                VStack(alignment: .leading, spacing: 16) {
+                    Text("Simple Translation")
+                        .font(.headline)
+                        .foregroundColor(.orange)
+                    Text(verse.simpleTranslation)
+                        .font(.body)
+                        .lineSpacing(6)
+                        .dynamicTypeSize(.large ... .accessibility3)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding()
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color(.systemBackground))
+                )
+                .padding(.horizontal)
+            }
+            
+            // Explanation
+            if !verse.explanation.isEmpty {
+                VStack(alignment: .leading, spacing: 16) {
+                    Text("Explanation")
+                        .font(.headline)
+                        .foregroundColor(.orange)
+                    Text(verse.explanation)
+                        .font(.body)
+                        .lineSpacing(6)
+                        .dynamicTypeSize(.large ... .accessibility3)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding()
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color(.systemBackground))
+                )
+                .padding(.horizontal)
+            }
+        }
+        .padding(.vertical)
+        .onDisappear {
+            versesViewModel.stopAllAudio()
+        }
+    }
+}
+
 // MARK: - Prayer Verse Row
 private struct PrayerVerseRow: View {
     let verse: Verse
     let prayer: Prayer
+    @EnvironmentObject var versesViewModel: VersesViewModel
+    @Environment(\.colorScheme) private var colorScheme
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Verse \(verse.number)")
-                .font(.headline)
-                .foregroundColor(.primary)
+        HStack(alignment: .top, spacing: 16) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text(versesViewModel.displayLabel(for: verse, in: prayer))
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundColor(.primary)
+                
+                Text(verse.text)
+                    .font(.system(size: 15, weight: .regular))
+                    .foregroundColor(.secondary)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
+            }
             
-            Text(verse.text)
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-                .lineLimit(2)
-                .multilineTextAlignment(.leading)
+            Spacer(minLength: 12)
+            
+            Image(systemName: "chevron.right")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundColor(AppColors.gold)
+                .padding(.top, 4)
         }
+        .padding(18)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding()
         .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color(.systemBackground))
-                .shadow(color: Color.black.opacity(0.1), radius: 3, x: 0, y: 2)
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .fill(cardBackground)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 20, style: .continuous)
+                        .stroke(cardBorder, lineWidth: 1)
+                )
+                .shadow(color: cardShadow, radius: 12, x: 0, y: 8)
         )
-        .padding(.horizontal)
-        .padding(.vertical, 4)
+    }
+    
+    private var cardBackground: Color {
+        colorScheme == .dark ? AppColors.nightCard : AppColors.warmWhite
+    }
+    
+    private var cardBorder: Color {
+        colorScheme == .dark ? AppColors.nightHighlight.opacity(0.3) : AppColors.gold.opacity(0.18)
+    }
+    
+    private var cardShadow: Color {
+        colorScheme == .dark ? Color.black.opacity(0.4) : AppColors.saffron.opacity(0.12)
     }
 }
 
@@ -292,6 +467,8 @@ struct GenericVerseDetailView: View {
     @Binding var navigationPath: NavigationPath
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject var versesViewModel: VersesViewModel
+    @EnvironmentObject private var blessingProgress: BlessingProgressStore
+    @StateObject private var quizManager = QuizManager()
     @State private var scrollProxy: ScrollViewProxy?
     
     private var canGoToPrevious: Bool {
@@ -348,13 +525,13 @@ struct GenericVerseDetailView: View {
                                     currentWord: versesViewModel.currentWord,
                                     currentRange: versesViewModel.currentRange
                                 )
-                                .font(.title2)
+                        .font(.title2)
                                 .fontWeight(.semibold)
-                                .lineSpacing(8)
+                        .lineSpacing(8)
                                 .multilineTextAlignment(.center)
-                                .id("main-text")
-                                .accessibilityLabel("Verse text in Hindi")
-                                .accessibilityHint("Double tap to hear pronunciation")
+                        .id("main-text")
+                        .accessibilityLabel("Verse text in Hindi")
+                        .accessibilityHint("Double tap to hear pronunciation")
                             }
                         }
                         .frame(maxWidth: .infinity)
@@ -393,13 +570,13 @@ struct GenericVerseDetailView: View {
                     // Play button - centered
                     VStack(spacing: 12) {
                         Button(action: {
-                            if versesViewModel.isPlaying {
-                                if versesViewModel.isPaused {
-                                    versesViewModel.resumeAudio(for: .verseDetail)
+                                if versesViewModel.isPlaying {
+                                    if versesViewModel.isPaused {
+                                        versesViewModel.resumeAudio(for: .verseDetail)
+                                    } else {
+                                        versesViewModel.pauseAudio(for: .verseDetail)
+                                    }
                                 } else {
-                                    versesViewModel.pauseAudio(for: .verseDetail)
-                                }
-                            } else {
                                 // Use playVerse for consistent behavior (plays Hindi + English Translation + Explanation)
                                 versesViewModel.playVerse(verse)
                             }
@@ -489,7 +666,7 @@ struct GenericVerseDetailView: View {
                 .padding()
             }
             .background(Color(.systemGray6))
-            .navigationTitle("Verse \(verse.number)")
+            .navigationTitle(versesViewModel.displayLabel(for: verse, in: prayer))
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(.visible, for: .navigationBar)
             .toolbarBackground(Color(.systemBackground), for: .navigationBar)
@@ -561,8 +738,11 @@ struct GenericVerseDetailView: View {
                 }
             }
             .onDisappear {
-                versesViewModel.stopAudio(for: .verseDetail)
+                versesViewModel.stopAllAudio()
             }
+        }
+        .onAppear {
+            blessingProgress.recordVerse(verse, in: prayer)
         }
     }
     
@@ -602,38 +782,31 @@ struct GenericCompletePlaybackView: View {
     
     var body: some View {
         VStack(spacing: 20) {
-            // Header
-            Text("Complete \(prayer.displayTitle)")
-                .font(.title)
-                .fontWeight(.bold)
-                .foregroundColor(.orange)
-                .padding(.top)
-            
             // Playback controls
             VStack(spacing: 16) {
-                // Play/Pause Button
-                Button(action: {
-                    if versesViewModel.isPlayingCompleteVersion {
+            // Play/Pause Button
+            Button(action: {
+                if versesViewModel.isPlayingCompleteVersion {
                         if versesViewModel.isCompletePaused {
-                            versesViewModel.resumeAudio(for: .completeView)
-                        } else {
-                            versesViewModel.pauseAudio(for: .completeView)
-                        }
+                        versesViewModel.resumeAudio(for: .completeView)
                     } else {
-                        // Start playback from the beginning
-                        versesViewModel.playCompletePrayer(verses: prayer.allVerses)
+                        versesViewModel.pauseAudio(for: .completeView)
                     }
-                }) {
+                } else {
+                    // Start playback from the beginning
+                    versesViewModel.playCompletePrayer(verses: prayer.allVerses)
+                }
+            }) {
                     HStack(spacing: 12) {
-                        Image(systemName: versesViewModel.isPlayingCompleteVersion ?
+                    Image(systemName: versesViewModel.isPlayingCompleteVersion ?
                               (versesViewModel.isCompletePaused ? "play.circle.fill" : "pause.circle.fill") :
-                              "play.circle.fill")
+                          "play.circle.fill")
                             .font(.system(size: 50))
-                            .foregroundColor(.orange)
-                        
-                        Text(versesViewModel.isPlayingCompleteVersion ?
+                        .foregroundColor(.orange)
+                    
+                    Text(versesViewModel.isPlayingCompleteVersion ?
                              (versesViewModel.isCompletePaused ? "Resume" : "Pause") :
-                             "Play Complete \(prayer.displayTitle)")
+                         prayer.bilingualPlayFullLabel)
                             .font(.title2)
                             .fontWeight(.semibold)
                             .foregroundColor(.orange)
@@ -651,13 +824,13 @@ struct GenericCompletePlaybackView: View {
                         // Show current verse being played
                         if let currentVerse = versesViewModel.currentCompleteVerse ?? versesViewModel.currentVerse {
                             Text("Now playing: Verse \(currentVerse.number)")
-                                .font(.headline)
-                                .foregroundColor(.orange)
-                        }
-                        
+                        .font(.headline)
+                        .foregroundColor(.orange)
+            }
+            
                         // Progress bar
-                        ProgressView()
-                            .progressViewStyle(LinearProgressViewStyle(tint: .orange))
+                    ProgressView()
+                        .progressViewStyle(LinearProgressViewStyle(tint: .orange))
                             .padding(.horizontal)
                     }
                     .padding()
@@ -672,27 +845,42 @@ struct GenericCompletePlaybackView: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 24) {
                         ForEach(prayer.allVerses) { verse in
-                            VStack(alignment: .leading, spacing: 8) {
+                            VStack(alignment: .leading, spacing: 10) {
                                 Text("Verse \(verse.number)")
                                     .font(.headline)
                                     .foregroundColor(.orange)
-                                
-                                Text(verse.text)
-                                    .font(.title3)
-                                    .lineSpacing(8)
-                                    .padding(.vertical, 8)
+
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Text(verse.text)
+                                        .font(.title3)
+
+                                    if let transliteration = verse.transliteration, !transliteration.isEmpty {
+                                        Text(transliteration)
+                                            .font(.system(size: 15, weight: .medium, design: .rounded))
+                                            .foregroundColor(.secondary)
+                                    }
+                                }
                             }
+                            .lineSpacing(6)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding()
                             .background(
-                                (versesViewModel.isCompletePlaying && 
-                                 versesViewModel.currentCompleteVerse?.id == verse.id) ||
-                                (versesViewModel.isPlaying && 
-                                 versesViewModel.currentVerse?.id == verse.id && 
-                                 versesViewModel.currentPlaybackSource == .completeView) ?
-                                    Color.orange.opacity(0.1) : Color.clear
+                                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                    .fill(Color.orange.opacity(0.05))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                            .stroke(
+                                                (versesViewModel.isPlayingCompleteVersion &&
+                                                 versesViewModel.currentCompleteVerse?.id == verse.id) ||
+                                                (versesViewModel.isPlaying &&
+                                                 versesViewModel.currentVerse?.id == verse.id &&
+                                                 versesViewModel.currentPlaybackSource == .completeView) ?
+                                                Color.orange.opacity(0.35) : Color.orange.opacity(0.12),
+                                                lineWidth: 1
+                                            )
+                                    )
                             )
-                            .cornerRadius(8)
+                            .cornerRadius(12)
                             .id("verse-\(verse.number)")
                         }
                     }
@@ -720,11 +908,11 @@ struct GenericCompletePlaybackView: View {
                     // If already playing, scroll to current verse
                     if let currentVerse = versesViewModel.currentCompleteVerse ?? versesViewModel.currentVerse {
                         proxy.scrollTo("verse-\(currentVerse.number)", anchor: .top)
-                    }
-                }
             }
         }
-        .navigationTitle("Complete \(prayer.displayTitle)")
+            }
+        }
+        .navigationTitle(prayer.displayTitle)
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.visible, for: .navigationBar)
         .toolbarBackground(Color(.systemBackground), for: .navigationBar)
@@ -744,28 +932,36 @@ struct GenericCompletePlaybackView: View {
             }
         }
         .onDisappear {
-            if versesViewModel.isCompletePlaying || versesViewModel.isPlayingCompleteVersion {
                 versesViewModel.stopAudio(for: .completeView)
-            }
         }
     }
 }
 
 #Preview {
-    let samplePrayer = Prayer(
-        title: "Hanuman Aarti",
-        titleHindi: "हनुमान आरती",
-        type: .aarti,
-        category: .hanuman,
-        description: "A beautiful prayer to Lord Hanuman",
-        verses: [
-            Verse(number: 1, text: "जय हनुमान ज्ञान गुन सागर", meaning: "Victory to Hanuman, ocean of knowledge", simpleTranslation: "Victory to Hanuman, ocean of knowledge", explanation: "Praying to Hanuman who is full of wisdom", audioFileName: "aarti_1")
-        ]
-    )
+    PrayerDetailPreviewContainer()
+}
+
+private struct PrayerDetailPreviewContainer: View {
+    @StateObject private var store = BlessingProgressStore(defaults: UserDefaults())
     
-    NavigationStack {
-        PrayerDetailView(prayer: samplePrayer, navigationPath: .constant(NavigationPath()))
-            .environmentObject(VersesViewModel())
+    var body: some View {
+        let samplePrayer = Prayer(
+            title: "Hanuman Aarti",
+            titleHindi: "हनुमान आरती",
+            type: .aarti,
+            category: .hanuman,
+            description: "A beautiful prayer to Lord Hanuman",
+            verses: [
+                Verse(number: 1, text: "जय हनुमान ज्ञान गुन सागर", meaning: "Victory to Hanuman, ocean of knowledge", simpleTranslation: "Victory to Hanuman, ocean of knowledge", explanation: "Praying to Hanuman who is full of wisdom", audioFileName: "aarti_1")
+            ]
+        )
+        
+        NavigationStack {
+            PrayerDetailView(prayer: samplePrayer, navigationPath: .constant(NavigationPath()))
+                .environmentObject(VersesViewModel())
+                .environmentObject(CurrentPrayerContext.preview())
+                .environmentObject(store)
+        }
     }
 }
 

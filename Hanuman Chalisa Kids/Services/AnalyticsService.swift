@@ -6,7 +6,7 @@ class AnalyticsService {
     
     // User preferences for data collection
     private var isAnalyticsEnabled: Bool {
-        return UserDefaults.standard.bool(forKey: "analytics_enabled")
+        false
     }
     
     func trackScreen(_ screenName: String) {

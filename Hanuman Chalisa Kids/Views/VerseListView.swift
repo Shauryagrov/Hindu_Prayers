@@ -5,6 +5,14 @@ struct VerseListView: View {
     @State private var showingVerseJumper = false
     @State private var navigationPath = NavigationPath()
     @State private var currentScrollProxy: ScrollViewProxy?
+    @EnvironmentObject var prayerContext: CurrentPrayerContext
+    @State private var showChat = false
+    @StateObject private var libraryViewModel = PrayerLibraryViewModel()
+    @EnvironmentObject private var blessingProgress: BlessingProgressStore
+    
+    private var chalisaPrayer: Prayer? {
+        libraryViewModel.prayers.first(where: { $0.title == "Hanuman Chalisa" })
+    }
     
     var body: some View {
         NavigationStack(path: $navigationPath) {
@@ -12,8 +20,32 @@ struct VerseListView: View {
                 viewModel: viewModel,
                 showingVerseJumper: $showingVerseJumper,
                 navigationPath: $navigationPath,
-                currentScrollProxy: $currentScrollProxy
+                currentScrollProxy: $currentScrollProxy,
+                title: chalisaPrayer?.displayTitle ?? "हनुमान चालीसा",
+                onAsk: {
+                    if let prayer = chalisaPrayer {
+                        prayerContext.setCurrentPrayer(prayer)
+                        showChat = true
+                    }
+                }
             )
+        }
+        .onAppear {
+            // Set current prayer context for Hanuman Chalisa
+            if let chalisaPrayer = chalisaPrayer {
+                prayerContext.setCurrentPrayer(chalisaPrayer)
+            }
+        }
+        .onDisappear {
+            prayerContext.clearCurrentPrayer()
+            viewModel.stopAllAudio()
+        }
+        .fullScreenCover(isPresented: $showChat) {
+            if let prayer = chalisaPrayer {
+                PrayerChatView(prayer: prayer) {
+                    showChat = false
+                }
+            }
         }
         .onAppear {
             // Don't reset navigation path on every appear
@@ -36,14 +68,47 @@ struct VerseListViewContent: View {
     @Binding var navigationPath: NavigationPath
     @State private var showingVerseJumper = false
     @State private var currentScrollProxy: ScrollViewProxy?
+    @EnvironmentObject var prayerContext: CurrentPrayerContext
+    @StateObject private var libraryViewModel = PrayerLibraryViewModel()
+    @State private var showChat = false
+    @EnvironmentObject private var blessingProgress: BlessingProgressStore
+    
+    private var chalisaPrayer: Prayer? {
+        libraryViewModel.prayers.first(where: { $0.title == "Hanuman Chalisa" })
+    }
     
     var body: some View {
         MainContent(
             viewModel: viewModel,
             showingVerseJumper: $showingVerseJumper,
             navigationPath: $navigationPath,
-            currentScrollProxy: $currentScrollProxy
+            currentScrollProxy: $currentScrollProxy,
+            title: chalisaPrayer?.displayTitle ?? "हनुमान चालीसा",
+            onAsk: {
+                if let prayer = chalisaPrayer {
+                    prayerContext.setCurrentPrayer(prayer)
+                    showChat = true
+                }
+            }
         )
+        .onAppear {
+            // Set current prayer context for Hanuman Chalisa
+            if let chalisaPrayer = chalisaPrayer {
+                prayerContext.setCurrentPrayer(chalisaPrayer)
+            }
+        }
+        .onDisappear {
+            // Clear prayer context when leaving
+            prayerContext.clearCurrentPrayer()
+            viewModel.stopAllAudio()
+        }
+        .fullScreenCover(isPresented: $showChat) {
+            if let prayer = chalisaPrayer {
+                PrayerChatView(prayer: prayer) {
+                    showChat = false
+                }
+            }
+        }
         .navigationDestination(for: Verse.self) { verse in
             VerseDetailView(navigationPath: $navigationPath, verse: verse)
                 .onAppear {
@@ -51,12 +116,6 @@ struct VerseListViewContent: View {
                         viewModel.stopAudio()
                     }
                 }
-        }
-        .navigationDestination(for: String.self) { value in
-            if value == "complete" {
-                CompleteChalisaView()
-                    .environmentObject(viewModel)
-            }
         }
         .sheet(isPresented: $showingVerseJumper) {
             VerseJumperView { verseNumber in
@@ -75,13 +134,11 @@ private struct MainContent: View {
     @Binding var showingVerseJumper: Bool
     @Binding var navigationPath: NavigationPath
     @Binding var currentScrollProxy: ScrollViewProxy?
+    let title: String
+    let onAsk: () -> Void
     
     var body: some View {
         VStack(spacing: 0) {
-            TopNavigationButtons(
-                showingVerseJumper: $showingVerseJumper
-            )
-            
             Text("Tap on any verse to learn more")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
@@ -95,7 +152,8 @@ private struct MainContent: View {
                 showingVerseJumper: $showingVerseJumper
             )
         }
-        .navigationTitle("Hanuman Chalisa")
+        .navigationTitle(title)
+        .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
@@ -110,25 +168,25 @@ private struct MainContent: View {
                     .foregroundColor(.orange)
                 }
             }
-        }
-    }
-}
-
-private struct TopNavigationButtons: View {
-    @Binding var showingVerseJumper: Bool
-    
-    var body: some View {
-        HStack {
-            NavigationLink(value: "complete") {
-                Label("Complete Chalisa", systemImage: "book.circle.fill")
-                    .foregroundColor(.orange)
-                    .font(.title3)
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button(action: onAsk) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "message.fill")
+                            .font(.system(size: 14, weight: .semibold))
+                        Text("Ask")
+                            .font(.system(size: 14, weight: .semibold))
+                    }
+                    .foregroundColor(.white)
+                    .padding(.vertical, 6)
+                    .padding(.horizontal, 12)
+                    .background(
+                        Capsule()
+                            .fill(AppGradients.saffronGold)
+                    )
+                    .shadow(color: AppColors.saffron.opacity(0.35), radius: 8, x: 0, y: 4)
+                }
             }
-            
-            Spacer()
         }
-        .padding(.horizontal)
-        .padding(.vertical, 8)
     }
 }
 
@@ -202,28 +260,61 @@ struct VerseJumperView: View {
 // 1. Create a separate component for verse rows
 private struct VerseRowView: View {
     let verse: Verse
+    @EnvironmentObject var viewModel: VersesViewModel
+    @EnvironmentObject var prayerContext: CurrentPrayerContext
+    @Environment(\.colorScheme) private var colorScheme
+    
+    private var title: String {
+        if let prayer = prayerContext.currentPrayer {
+            return viewModel.displayLabel(for: verse, in: prayer)
+        }
+        return "Verse \(verse.number)"
+    }
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Verse \(verse.number)")
-                .font(.headline)
-                .foregroundColor(.primary)
+        HStack(alignment: .top, spacing: 16) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text(title)
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundColor(.primary)
+                
+                Text(verse.text)
+                    .font(.system(size: 15, weight: .regular))
+                    .foregroundColor(.secondary)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
+            }
             
-            Text(verse.text)
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-                .lineLimit(2)
-                .multilineTextAlignment(.leading)
+            Spacer(minLength: 12)
+            
+            Image(systemName: "chevron.right")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundColor(AppColors.gold)
+                .padding(.top, 4)
         }
+        .padding(18)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding()
         .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color(.systemBackground))
-                .shadow(color: Color.black.opacity(0.1), radius: 3, x: 0, y: 2)
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .fill(cardBackground)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 20, style: .continuous)
+                        .stroke(cardBorder, lineWidth: 1)
+                )
+                .shadow(color: cardShadow, radius: 12, x: 0, y: 8)
         )
-        .padding(.horizontal)
-        .padding(.vertical, 4)
+    }
+    
+    private var cardBackground: Color {
+        colorScheme == .dark ? AppColors.nightCard : AppColors.warmWhite
+    }
+    
+    private var cardBorder: Color {
+        colorScheme == .dark ? AppColors.nightHighlight.opacity(0.3) : AppColors.gold.opacity(0.18)
+    }
+    
+    private var cardShadow: Color {
+        colorScheme == .dark ? Color.black.opacity(0.4) : AppColors.saffron.opacity(0.12)
     }
 }
 
@@ -231,102 +322,55 @@ private struct VerseRowView: View {
 private struct DohaRowView: View {
     let title: String
     let text: String
+    @Environment(\.colorScheme) private var colorScheme
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(title)
-                .font(.headline)
-                .foregroundColor(.primary)
+        HStack(alignment: .top, spacing: 16) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text(title)
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundColor(.primary)
+                
+                Text(text)
+                    .font(.system(size: 15, weight: .regular))
+                    .foregroundColor(.secondary)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
+            }
             
-            Text(text)
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-                .lineLimit(2)
-                .multilineTextAlignment(.leading)
+            Spacer(minLength: 12)
+            
+            Image(systemName: "chevron.right")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundColor(AppColors.gold)
+                .padding(.top, 4)
         }
+        .padding(18)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding()
         .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color(.systemBackground))
-                .shadow(color: Color.black.opacity(0.1), radius: 3, x: 0, y: 2)
-        )
-        .padding(.horizontal)
-        .padding(.vertical, 4)
-    }
-}
-
-// 2. Create a separate component for the main verses section
-private struct MainVersesSection: View {
-    let verses: [Verse]
-    @Binding var navigationPath: NavigationPath
-    
-    var body: some View {
-        Section(header: Text("चौपाई")
-            .font(.title2.bold())
-            .foregroundColor(.orange)
-            .padding(.vertical, 8)
-        ) {
-            ForEach(verses) { verse in
-                NavigationLink(value: verse) {
-                    VerseRowView(verse: verse)
-                }
-                .listRowSeparator(.hidden)
-                .listRowBackground(Color.clear)
-            }
-        }
-    }
-}
-
-// Update the OpeningDohasSection to completely remove default chevrons
-private struct OpeningDohasSection: View {
-    let verses: [Verse]
-    @Binding var navigationPath: NavigationPath
-    
-    var body: some View {
-        Section(header: Text("दोहा")
-            .font(.title2.bold())
-            .foregroundColor(.orange)
-            .padding(.vertical, 8)
-        ) {
-            ForEach(verses) { verse in
-                NavigationLink(value: verse) {
-                    DohaRowView(
-                        title: verse.number == -1 ? "Opening Prayer 1" : "Opening Prayer 2",
-                        text: verse.text
-                    )
-                }
-                .listRowSeparator(.hidden)
-                .listRowBackground(Color.clear)
-            }
-        }
-    }
-}
-
-// Update the ClosingDohaSection to completely remove default chevrons
-private struct ClosingDohaSection: View {
-    let verse: Verse
-    @Binding var navigationPath: NavigationPath
-    
-    var body: some View {
-        Section(header: Text("दोहा")
-            .font(.title2.bold())
-            .foregroundColor(.orange)
-            .padding(.vertical, 8)
-        ) {
-            NavigationLink(value: verse) {
-                DohaRowView(
-                    title: "Closing Prayer",
-                    text: verse.text
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .fill(cardBackground)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 20, style: .continuous)
+                        .stroke(cardBorder, lineWidth: 1)
                 )
-            }
-            .listRowSeparator(.hidden)
-            .listRowBackground(Color.clear)
-        }
+                .shadow(color: cardShadow, radius: 12, x: 0, y: 8)
+        )
+    }
+    
+    private var cardBackground: Color {
+        colorScheme == .dark ? AppColors.nightCard : AppColors.warmWhite
+    }
+    
+    private var cardBorder: Color {
+        colorScheme == .dark ? AppColors.nightHighlight.opacity(0.3) : AppColors.gold.opacity(0.18)
+    }
+    
+    private var cardShadow: Color {
+        colorScheme == .dark ? Color.black.opacity(0.4) : AppColors.saffron.opacity(0.12)
     }
 }
 
-// Update the VersesList to use a different list style
 private struct VersesList: View {
     @ObservedObject var viewModel: VersesViewModel
     @Binding var navigationPath: NavigationPath
@@ -335,33 +379,57 @@ private struct VersesList: View {
     
     var body: some View {
         ScrollViewReader { proxy in
-            List {
-                // Opening Dohas section - pass navigationPath
-                OpeningDohasSection(verses: viewModel.sections[0].verses, navigationPath: $navigationPath)
-                
-                // Main Verses section - pass navigationPath
-                MainVersesSection(verses: viewModel.verses, navigationPath: $navigationPath)
-                
-                // Closing Doha section - pass navigationPath
-                ClosingDohaSection(verse: viewModel.sections[2].verses[0], navigationPath: $navigationPath)
-                
-                // Bottom spacing for comfortable scrolling
-                Color.clear
-                    .frame(height: 80)
-                    .listRowBackground(Color.clear)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 28) {
+                    if let openingSection = viewModel.sections[safe: 0] {
+                        LazyVStack(spacing: 16) {
+                            ForEach(openingSection.verses) { verse in
+                                NavigationLink(value: verse) {
+                                    DohaRowView(
+                                        title: verse.number == -1 ? "Opening Prayer 1" : "Opening Prayer 2",
+                                        text: verse.text
+                                    )
+                                }
+                                .buttonStyle(.plain)
+                                .id(verse.id)
+                            }
+                        }
+                    }
+                    
+                    LazyVStack(spacing: 16) {
+                        ForEach(viewModel.verses) { verse in
+                            NavigationLink(value: verse) {
+                                VerseRowView(verse: verse)
+                            }
+                            .buttonStyle(.plain)
+                            .id(verse.id)
+                        }
+                    }
+                    
+                    if let closingVerse = viewModel.sections[safe: 2]?.verses.first {
+                        LazyVStack(spacing: 16) {
+                            NavigationLink(value: closingVerse) {
+                                DohaRowView(
+                                    title: "Closing Prayer",
+                                    text: closingVerse.text
+                                )
+                            }
+                            .buttonStyle(.plain)
+                            .id(closingVerse.id)
+                        }
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 12)
+                .padding(.bottom, 48)
             }
-            .listStyle(PlainListStyle())
-            .environment(\.defaultMinListRowHeight, 0)
             .onAppear {
                 currentScrollProxy = proxy
             }
         }
         .sheet(isPresented: $showingVerseJumper) {
             VerseJumperView { verseNumber in
-                // For VerseJumperView, we'll use a different approach since we're nested
-                // The navigation will be handled by the parent NavigationStack
                 showingVerseJumper = false
-                // TODO: Implement programmatic navigation from sheet
             }
             .presentationDetents([.height(400)])
         }
@@ -369,9 +437,19 @@ private struct VersesList: View {
 }
 
 #Preview {
-    NavigationView {
-        VerseListView()
-            .environmentObject(VersesViewModel())
+    VerseListPreviewContainer()
+}
+
+private struct VerseListPreviewContainer: View {
+    @StateObject private var store = BlessingProgressStore(defaults: UserDefaults())
+    
+    var body: some View {
+        NavigationView {
+            VerseListView()
+                .environmentObject(VersesViewModel())
+                .environmentObject(CurrentPrayerContext.preview())
+                .environmentObject(store)
+        }
     }
 }
 

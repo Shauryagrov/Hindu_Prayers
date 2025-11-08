@@ -12,6 +12,7 @@ import AVFoundation
 struct Hanuman_Chalisa_KidsApp: App {
     @StateObject private var viewModel = VersesViewModel()
     @StateObject private var appState = AppState()
+    @StateObject private var blessingProgress = BlessingProgressStore.shared
     @Environment(\.scenePhase) private var scenePhase
     
     init() {
@@ -90,6 +91,8 @@ struct Hanuman_Chalisa_KidsApp: App {
             ContentView()
                 .environmentObject(viewModel)
                 .environmentObject(appState)
+                .environmentObject(CurrentPrayerContext.shared)
+                .environmentObject(blessingProgress)
                 .onChange(of: scenePhase) { _, newPhase in
                     switch newPhase {
                     case .active:
