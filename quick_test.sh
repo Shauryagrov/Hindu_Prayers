@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Quick Test Script for Hanuman Chalisa Kids
+# Quick Test Script for DivinePrayers
 # Run this after each step to verify the build
 
 echo "🔨 Building project..."
@@ -10,7 +10,7 @@ cd "$(dirname "$0")"
 
 # Build the project
 xcodebuild -project "Hanuman Chalisa Kids.xcodeproj" \
-  -scheme "Hanuman Chalisa Kids" \
+  -scheme "DivinePrayers" \
   -destination "platform=iOS Simulator,name=iPhone 16" \
   build 2>&1 | tee /tmp/build_output.txt
 

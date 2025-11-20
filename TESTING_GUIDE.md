@@ -114,7 +114,7 @@ This guide ensures we test thoroughly after each step to prevent breaking existi
 ```bash
 cd "/Users/madhurgrover/Hanuman-Chalisa-Kids"
 xcodebuild -project "Hanuman Chalisa Kids.xcodeproj" \
-  -scheme "Hanuman Chalisa Kids" \
+  -scheme "DivinePrayers" \
   -destination "platform=iOS Simulator,name=iPhone 16" \
   build 2>&1 | grep -E "(error|warning|BUILD)"
 ```
@@ -124,7 +124,7 @@ xcodebuild -project "Hanuman Chalisa Kids.xcodeproj" \
 # In Xcode: Cmd + U to run unit tests
 # Or from command line:
 xcodebuild test -project "Hanuman Chalisa Kids.xcodeproj" \
-  -scheme "Hanuman Chalisa Kids" \
+  -scheme "DivinePrayers" \
   -destination "platform=iOS Simulator,name=iPhone 16"
 ```
 
@@ -270,7 +270,7 @@ Run this after each change:
 ```bash
 # 1. Build
 xcodebuild -project "Hanuman Chalisa Kids.xcodeproj" \
-  -scheme "Hanuman Chalisa Kids" \
+  -scheme "DivinePrayers" \
   -destination "platform=iOS Simulator,name=iPhone 16" \
   build 2>&1 | tail -5
 

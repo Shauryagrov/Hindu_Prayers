@@ -6,9 +6,9 @@
 set -e
 
 PROJECT_PATH="Hanuman Chalisa Kids.xcodeproj"
-SCHEME="Hanuman Chalisa Kids"
+SCHEME="DivinePrayers"
 DESTINATION="platform=iOS Simulator,name=iPhone 16"
-TEST_TARGET="Hanuman Chalisa KidsUITests"
+TEST_TARGET="DivinePrayersUITests"
 
 echo "🧪 Starting Automated UI Tests..."
 echo "=================================="

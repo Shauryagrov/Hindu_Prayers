@@ -27,9 +27,9 @@ All critical UI elements now have accessibility identifiers for reliable test au
 cd "/Users/madhurgrover/Hanuman-Chalisa-Kids"
 xcodebuild test \
   -project "Hanuman Chalisa Kids.xcodeproj" \
-  -scheme "Hanuman Chalisa Kids" \
+  -scheme "DivinePrayers" \
   -destination "platform=iOS Simulator,name=iPhone 16" \
-  -only-testing:"Hanuman Chalisa KidsUITests/NavigationRegressionTests/testQuizBackToLibraryNavigation"
+  -only-testing:"DivinePrayersUITests/NavigationRegressionTests/testQuizBackToLibraryNavigation"
 ```
 
 ### In Xcode:
@@ -52,7 +52,7 @@ xcodebuild test \
 
 ## 🔧 Test Infrastructure
 
-- **Test File**: `Hanuman Chalisa KidsUITests/NavigationRegressionTests.swift`
+- **Test File**: `DivinePrayersUITests/NavigationRegressionTests.swift`
 - **Test Method**: `testQuizBackToLibraryNavigation()`
 - **Accessibility IDs**: All buttons have identifiers for reliable matching
 - **Error Handling**: Uses `guard` statements and clear failure messages

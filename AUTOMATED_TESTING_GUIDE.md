@@ -19,9 +19,9 @@ This project includes automated UI tests that verify navigation flows, including
 ### Option 3: Run via Command Line
 ```bash
 xcodebuild test \
-  -scheme "Hanuman Chalisa Kids" \
+  -scheme "DivinePrayers" \
   -destination "platform=iOS Simulator,name=iPhone 16" \
-  -only-testing:HanumanChalisaKidsUITests/NavigationRegressionTests/testQuizBackToLibraryNavigation
+  -only-testing:DivinePrayersUITests/NavigationRegressionTests/testQuizBackToLibraryNavigation
 ```
 
 ## Key Tests for Navigation
@@ -38,9 +38,9 @@ xcodebuild test \
 **How to run**:
 ```bash
 xcodebuild test \
-  -scheme "Hanuman Chalisa Kids" \
+  -scheme "DivinePrayers" \
   -destination "platform=iOS Simulator,name=iPhone 16" \
-  -only-testing:HanumanChalisaKidsUITests/NavigationRegressionTests/testQuizBackToLibraryNavigation
+  -only-testing:DivinePrayersUITests/NavigationRegressionTests/testQuizBackToLibraryNavigation
 ```
 
 ### 2. `testQuizNavigationDoesNotStickToQuizTab`
@@ -59,9 +59,9 @@ To run tests automatically in CI/CD:
       - name: Run UI Tests
   run: |
     xcodebuild test \
-      -scheme "Hanuman Chalisa Kids" \
+      -scheme "DivinePrayers" \
       -destination "platform=iOS Simulator,name=iPhone 16" \
-      -only-testing:HanumanChalisaKidsUITests/NavigationRegressionTests
+      -only-testing:DivinePrayersUITests/NavigationRegressionTests
 ```
 
 ## What Gets Tested Automatically

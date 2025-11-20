@@ -1,0 +1,612 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		2971DB38127A4DD4A035CE47 /* Fresh.storekit in Resources */ = {isa = PBXBuildFile; fileRef = 8C4C02F2413644E2A9A2C27A /* Fresh.storekit */; };
+		DDE8E66E2EC56BBF0025F2D8 /* StoreKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DDE8E66D2EC56BBF0025F2D8 /* StoreKit.framework */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		DDED51B42D5E9F5D00AE9CD1 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = DDED519B2D5E9F5C00AE9CD1 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = DDED51A22D5E9F5C00AE9CD1;
+			remoteInfo = DivinePrayers;
+		};
+		DDED51BE2D5E9F5D00AE9CD1 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = DDED519B2D5E9F5C00AE9CD1 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = DDED51A22D5E9F5C00AE9CD1;
+			remoteInfo = DivinePrayers;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		8C4C02F2413644E2A9A2C27A /* Fresh.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; name = Fresh.storekit; path = DivinePrayers/StoreKit/Fresh.storekit; sourceTree = "<group>"; };
+		A3FA43786D7842F28E9B557B /* DivinePrayers.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; name = DivinePrayers.entitlements; path = DivinePrayers/DivinePrayers.entitlements; sourceTree = "<group>"; };
+		DDE8E66D2EC56BBF0025F2D8 /* StoreKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = StoreKit.framework; path = System/Library/Frameworks/StoreKit.framework; sourceTree = SDKROOT; };
+		DDED51A32D5E9F5C00AE9CD1 /* DivinePrayers.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DivinePrayers.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		DDED51B32D5E9F5D00AE9CD1 /* DivinePrayersTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = DivinePrayersTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		DDED51BD2D5E9F5D00AE9CD1 /* DivinePrayersUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = DivinePrayersUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		DDED51A52D5E9F5C00AE9CD1 /* DivinePrayers */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = DivinePrayers;
+			sourceTree = "<group>";
+		};
+		DDED51B62D5E9F5D00AE9CD1 /* DivinePrayersTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = DivinePrayersTests;
+			sourceTree = "<group>";
+		};
+		DDED51C02D5E9F5D00AE9CD1 /* DivinePrayersUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = DivinePrayersUITests;
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		DDED51A02D5E9F5C00AE9CD1 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				DDE8E66E2EC56BBF0025F2D8 /* StoreKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		DDED51B02D5E9F5D00AE9CD1 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		DDED51BA2D5E9F5D00AE9CD1 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		DDE8E66C2EC56BBF0025F2D8 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				DDE8E66D2EC56BBF0025F2D8 /* StoreKit.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		DDED519A2D5E9F5C00AE9CD1 = {
+			isa = PBXGroup;
+			children = (
+				8C4C02F2413644E2A9A2C27A /* Fresh.storekit */,
+				A3FA43786D7842F28E9B557B /* DivinePrayers.entitlements */,
+				DDED51A52D5E9F5C00AE9CD1 /* DivinePrayers */,
+				DDED51B62D5E9F5D00AE9CD1 /* DivinePrayersTests */,
+				DDED51C02D5E9F5D00AE9CD1 /* DivinePrayersUITests */,
+				DDE8E66C2EC56BBF0025F2D8 /* Frameworks */,
+				DDED51A42D5E9F5C00AE9CD1 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		DDED51A42D5E9F5C00AE9CD1 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				DDED51A32D5E9F5C00AE9CD1 /* DivinePrayers.app */,
+				DDED51B32D5E9F5D00AE9CD1 /* DivinePrayersTests.xctest */,
+				DDED51BD2D5E9F5D00AE9CD1 /* DivinePrayersUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		DDED51A22D5E9F5C00AE9CD1 /* DivinePrayers */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = DDED51C72D5E9F5D00AE9CD1 /* Build configuration list for PBXNativeTarget "DivinePrayers" */;
+			buildPhases = (
+				DDED519F2D5E9F5C00AE9CD1 /* Sources */,
+				DDED51A02D5E9F5C00AE9CD1 /* Frameworks */,
+				DDED51A12D5E9F5C00AE9CD1 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				DDED51A52D5E9F5C00AE9CD1 /* DivinePrayers */,
+			);
+			name = DivinePrayers;
+			packageProductDependencies = (
+			);
+			productName = DivinePrayers;
+			productReference = DDED51A32D5E9F5C00AE9CD1 /* DivinePrayers.app */;
+			productType = "com.apple.product-type.application";
+		};
+		DDED51B22D5E9F5D00AE9CD1 /* DivinePrayersTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = DDED51CA2D5E9F5D00AE9CD1 /* Build configuration list for PBXNativeTarget "DivinePrayersTests" */;
+			buildPhases = (
+				DDED51AF2D5E9F5D00AE9CD1 /* Sources */,
+				DDED51B02D5E9F5D00AE9CD1 /* Frameworks */,
+				DDED51B12D5E9F5D00AE9CD1 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				DDED51B52D5E9F5D00AE9CD1 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				DDED51B62D5E9F5D00AE9CD1 /* DivinePrayersTests */,
+			);
+			name = DivinePrayersTests;
+			packageProductDependencies = (
+			);
+			productName = DivinePrayersTests;
+			productReference = DDED51B32D5E9F5D00AE9CD1 /* DivinePrayersTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		DDED51BC2D5E9F5D00AE9CD1 /* DivinePrayersUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = DDED51CD2D5E9F5D00AE9CD1 /* Build configuration list for PBXNativeTarget "DivinePrayersUITests" */;
+			buildPhases = (
+				DDED51B92D5E9F5D00AE9CD1 /* Sources */,
+				DDED51BA2D5E9F5D00AE9CD1 /* Frameworks */,
+				DDED51BB2D5E9F5D00AE9CD1 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				DDED51BF2D5E9F5D00AE9CD1 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				DDED51C02D5E9F5D00AE9CD1 /* DivinePrayersUITests */,
+			);
+			name = DivinePrayersUITests;
+			packageProductDependencies = (
+			);
+			productName = DivinePrayersUITests;
+			productReference = DDED51BD2D5E9F5D00AE9CD1 /* DivinePrayersUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		DDED519B2D5E9F5C00AE9CD1 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1620;
+				LastUpgradeCheck = 1620;
+				TargetAttributes = {
+					DDED51A22D5E9F5C00AE9CD1 = {
+						CreatedOnToolsVersion = 16.2;
+					};
+					DDED51B22D5E9F5D00AE9CD1 = {
+						CreatedOnToolsVersion = 16.2;
+						TestTargetID = DDED51A22D5E9F5C00AE9CD1;
+					};
+					DDED51BC2D5E9F5D00AE9CD1 = {
+						CreatedOnToolsVersion = 16.2;
+						TestTargetID = DDED51A22D5E9F5C00AE9CD1;
+					};
+				};
+			};
+			buildConfigurationList = DDED519E2D5E9F5C00AE9CD1 /* Build configuration list for PBXProject "DivinePrayers" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = DDED519A2D5E9F5C00AE9CD1;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = DDED51A42D5E9F5C00AE9CD1 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				DDED51A22D5E9F5C00AE9CD1 /* DivinePrayers */,
+				DDED51B22D5E9F5D00AE9CD1 /* DivinePrayersTests */,
+				DDED51BC2D5E9F5D00AE9CD1 /* DivinePrayersUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		DDED51A12D5E9F5C00AE9CD1 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				2971DB38127A4DD4A035CE47 /* Fresh.storekit in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		DDED51B12D5E9F5D00AE9CD1 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		DDED51BB2D5E9F5D00AE9CD1 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		DDED519F2D5E9F5C00AE9CD1 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		DDED51AF2D5E9F5D00AE9CD1 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		DDED51B92D5E9F5D00AE9CD1 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		DDED51B52D5E9F5D00AE9CD1 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = DDED51A22D5E9F5C00AE9CD1 /* DivinePrayers */;
+			targetProxy = DDED51B42D5E9F5D00AE9CD1 /* PBXContainerItemProxy */;
+		};
+		DDED51BF2D5E9F5D00AE9CD1 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = DDED51A22D5E9F5C00AE9CD1 /* DivinePrayers */;
+			targetProxy = DDED51BE2D5E9F5D00AE9CD1 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		DDED51C52D5E9F5D00AE9CD1 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				EXECUTABLE_NAME = DivinePrayers;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = DivinePrayers;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.education";
+				INFOPLIST_KEY_UIApplicationDisplayName = DivinePrayers;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.2;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = DivinePrayers;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		DDED51C62D5E9F5D00AE9CD1 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				EXECUTABLE_NAME = DivinePrayers;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = DivinePrayers;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.education";
+				INFOPLIST_KEY_UIApplicationDisplayName = DivinePrayers;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.2;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = DivinePrayers;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		DDED51C82D5E9F5D00AE9CD1 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = DivinePrayers/DivinePrayers.entitlements;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 2;
+				DEVELOPMENT_ASSET_PATHS = "\"DivinePrayers/Preview Content\"";
+				DEVELOPMENT_TEAM = 994ZFPP989;
+				ENABLE_PREVIEWS = YES;
+				EXECUTABLE_NAME = DivinePrayers;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = DivinePrayers;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.education";
+				INFOPLIST_KEY_UIApplicationDisplayName = DivinePrayers;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.1;
+				PRODUCT_BUNDLE_IDENTIFIER = Aiveloc.DivinePrayers;
+				PRODUCT_NAME = DivinePrayers;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		DDED51C92D5E9F5D00AE9CD1 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = DivinePrayers/DivinePrayers.entitlements;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 2;
+				DEVELOPMENT_ASSET_PATHS = "\"DivinePrayers/Preview Content\"";
+				DEVELOPMENT_TEAM = 994ZFPP989;
+				ENABLE_PREVIEWS = YES;
+				EXECUTABLE_NAME = DivinePrayers;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = DivinePrayers;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.education";
+				INFOPLIST_KEY_UIApplicationDisplayName = DivinePrayers;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.1;
+				PRODUCT_BUNDLE_IDENTIFIER = Aiveloc.DivinePrayers;
+				PRODUCT_NAME = DivinePrayers;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		DDED51CB2D5E9F5D00AE9CD1 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 994ZFPP989;
+				EXECUTABLE_NAME = DivinePrayersTests;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.2;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = MG.DivinePrayersTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/DivinePrayers.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/DivinePrayers";
+			};
+			name = Debug;
+		};
+		DDED51CC2D5E9F5D00AE9CD1 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 994ZFPP989;
+				EXECUTABLE_NAME = DivinePrayersTests;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.2;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = MG.DivinePrayersTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/DivinePrayers.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/DivinePrayers";
+			};
+			name = Release;
+		};
+		DDED51CE2D5E9F5D00AE9CD1 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 994ZFPP989;
+				EXECUTABLE_NAME = DivinePrayersUITests;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = MG.DivinePrayersUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = DivinePrayers;
+			};
+			name = Debug;
+		};
+		DDED51CF2D5E9F5D00AE9CD1 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 994ZFPP989;
+				EXECUTABLE_NAME = DivinePrayersUITests;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = MG.DivinePrayersUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = DivinePrayers;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		DDED519E2D5E9F5C00AE9CD1 /* Build configuration list for PBXProject "DivinePrayers" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				DDED51C52D5E9F5D00AE9CD1 /* Debug */,
+				DDED51C62D5E9F5D00AE9CD1 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		DDED51C72D5E9F5D00AE9CD1 /* Build configuration list for PBXNativeTarget "DivinePrayers" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				DDED51C82D5E9F5D00AE9CD1 /* Debug */,
+				DDED51C92D5E9F5D00AE9CD1 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		DDED51CA2D5E9F5D00AE9CD1 /* Build configuration list for PBXNativeTarget "DivinePrayersTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				DDED51CB2D5E9F5D00AE9CD1 /* Debug */,
+				DDED51CC2D5E9F5D00AE9CD1 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		DDED51CD2D5E9F5D00AE9CD1 /* Build configuration list for PBXNativeTarget "DivinePrayersUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				DDED51CE2D5E9F5D00AE9CD1 /* Debug */,
+				DDED51CF2D5E9F5D00AE9CD1 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = DDED519B2D5E9F5C00AE9CD1 /* Project object */;
+}

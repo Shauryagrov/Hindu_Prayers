@@ -65,7 +65,7 @@
 
 ### Step 1: Add DailyVerseManager to App
 
-In `Hanuman_Chalisa_KidsApp.swift`:
+In `DivinePrayersApp.swift`:
 
 ```swift
 @StateObject private var dailyVerseManager = DailyVerseManager()
